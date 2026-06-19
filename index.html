@@ -14,21 +14,24 @@
             justify-content: space-between; /* Разносим контент */
             align-items: center;
             overflow: hidden;
+            position: relative; /* Важно для абсолютного позиционирования */
         }
 
         h1, #question {
             color: #8b4513;
             text-align: center;
-            z-index: 1;
+            z-index: 2;
             width: 90%;
         }
 
+        /* Контейнер для зоны с котами */
         #game-container {
             position: relative;
-            width: 100%;
-            height: 70%; /* Зона для котов занимает верхние 70% экрана */
-            max-height: calc(100vh - 200px); /* Ограничение по высоте */
+            width: 100vw;
+            height: 70vh; /* Зона для котов занимает верхние 70% экрана */
+            max-height: calc(100vh - 200px);
             pointer-events: none; /* Чтобы клик проходил сквозь пустые места */
+            margin-bottom: 20px; /* Отступ от цифр */
         }
 
         .cat-picture {
@@ -39,12 +42,12 @@
             box-shadow: 0 8px 16px rgba(0,0,0,0.2);
             opacity: 0.9;
             user-select: none;
-            pointer-events: auto; /* Включаем клики только на самих картинках */
+            pointer-events: auto;
             cursor: pointer;
             transition: transform 0.3s ease;
         }
         .cat-picture:hover {
-            transform: scale(1.05);
+            transform: scale(1.05) rotate(-2deg);
             z-index: 10;
         }
 
@@ -63,7 +66,7 @@
             
             position: fixed; /* Фиксируем относительно окна браузера */
             pointer-events: auto; /* Кнопки кликабельны */
-            z-index: 10;
+            z-index: 2;
         }
 
         button {
@@ -111,45 +114,79 @@
 
         let correctAnswer;
         const catSize = 150;
+        const MAX_ATTEMPTS = 50; // Лимит попыток найти место для кота
 
         const catImageLinks = [
-             'https://placekitten.com/200/200',
-             'https://placekitten.com/201/201',
-             'https://placekitten.com/202/202'
+             'https://www.youloveit.ru/uploads/gallery/thumb/995/youloveit_ru_kartinki_tri_kota52.png',
+    'https://www.youloveit.ru/uploads/gallery/thumb/995/youloveit_ru_kartinki_tri_kota46.png',
+    'https://www.youloveit.ru/uploads/gallery/thumb/995/youloveit_ru_kartinki_tri_kota44.png',
+'https://www.youloveit.ru/uploads/gallery/thumb/995/youloveit_ru_kartinki_tri_kota39.png',
+'https://www.youloveit.ru/uploads/gallery/thumb/995/youloveit_ru_kartinki_tri_kota37.png'
         ];
 
         function startGame() {
-             // 1. Очистка предыдущего раунда
              gameContainer.innerHTML = '';
              numbersEl.innerHTML = '';
              questionEl.textContent = "Сколько котов на крыше?";
              questionEl.style.color = "#333";
 
-             // 2. Генерация нового ответа
              correctAnswer = Math.floor(Math.random() * (9 - 1 + 1)) + 1;
+             const placedCats = []; // Массив для хранения уже размещенных котов {x, y}
 
-             // 3. Создание и размещение котов
              for (let i = 0; i < correctAnswer; i++) {
-                  const randomIndex = Math.floor(Math.random() * catImageLinks.length);
-                  const imgSrc = catImageLinks[randomIndex];
+                  let attempts = 0;
+                  let validPositionFound = false;
+                  let newCatPos;
 
-                  const catImg = document.createElement('img');
-                  catImg.src = imgSrc;
-                  catImg.classList.add('cat-picture');
+                  while (!validPositionFound && attempts < MAX_ATTEMPTS) {
+                      attempts++;
+                      const xPos = Math.random() * (window.innerWidth - catSize);
+                      
+                      // Максимальная высота Y - это верх блока с цифрами минус размер кота
+                      const numbersRect = numbersEl.getBoundingClientRect();
+                      const maxY = window.innerHeight - numbersRect.height - catSize - 20; 
 
-                  // Координаты X всегда случайные
-                  const xPos = Math.random() * (window.innerWidth - catSize);
-                  
-                  // Координаты Y ограничены высотой контейнера для котов
-                  const yPos = Math.random() * (gameContainer.clientHeight - catSize);
+                      if (maxY <= 0) break; // Если места нет, выходим из цикла
+                      
+                      const yPos = Math.random() * maxY;
+                      newCatPos = {x: xPos, y: yPos};
 
-                  catImg.style.left = `${xPos}px`;
-                  catImg.style.top = `${yPos}px`;
+                      // Проверяем пересечение с уже размещенными котами
+                      if (placedCats.length === 0) {
+                          validPositionFound = true;
+                      } else {
+                          let noCollision = true;
+                          for (const pos of placedCats) {
+                              // Проверка пересечения прямоугольников (AABB)
+                              const overlapX = newCatPos.x < pos.x + catSize && newCatPos.x + catSize > pos.x;
+                              const overlapY = newCatPos.y < pos.y + catSize && newCatPos.y + catSize > pos.y;
+                              if (overlapX && overlapY) {
+                                  noCollision = false;
+                                  break; // Нашли пересечение, ищем новую точку
+                              }
+                          }
+                          validPositionFound = noCollision;
+                      }
+                  }
 
-                  gameContainer.appendChild(catImg);
+                  // Если после всех попыток место так и не найдено, просто пропускаем этого кота,
+                  // чтобы игра не зависла в бесконечном цикле.
+                  if (validPositionFound) {
+                      placedCats.push(newCatPos);
+
+                      const randomIndex = Math.floor(Math.random() * catImageLinks.length);
+                      const imgSrc = catImageLinks[randomIndex];
+
+                      const catImg = document.createElement('img');
+                      catImg.src = imgSrc;
+                      catImg.classList.add('cat-picture');
+                      catImg.style.left = `${newCatPos.x}px`;
+                      catImg.style.top = `${newCatPos.y}px`;
+
+                      gameContainer.appendChild(catImg);
+                  }
              }
 
-             // 4. Создание кнопок с цифрами (в самом конце)
              for (let num = 1; num <= 9; num++) {
                   const btn = document.createElement('button');
                   btn.textContent = num;
