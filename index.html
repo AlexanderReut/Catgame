@@ -19,36 +19,43 @@
         color: #8b4513;
     }
 
-    /* --- ИЗМЕНЕНИЯ ДЛЯ МНОГОСТРОЧНОСТИ --- */
+    /* --- ГЛАВНОЕ ИСПРАВЛЕНИЕ ---
+       Используем CSS GRID для создания сетки */
     #game-container {
-        display: flex;           /* Включаем гибкий контейнер */
-        flex-wrap: wrap;         /* ЭТО ГЛАВНАЯ НАСТРОЙКА: разрешаем перенос элементов на новую строку */
-        gap: 20px;               /* Расстояние между котами (и между рядами) */
+        display: grid;
+        gap: 20px; /* Расстояние между котами по вертикали и горизонтали */
+        
+        /* Создаем адаптивную сетку:
+           - Автоматически определяем количество колонок (auto-fill)
+           - Минимальная ширина одной колонки — 100px
+           - Максимально коты займут всю доступную ширину контейнера (1fr) */
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); 
+        
         width: 100%;
-        max-width: 600px;        /* Ограничиваем общую ширину игры */
-        padding: 0 20px;         /* Отступы слева и справа для красоты */
+        max-width: 600px;
+        padding: 0 20px;
         margin-bottom: 25px;
-        justify-content: center;/* Центрируем все содержимое контейнера */
     }
 
     .cat-picture {
-        width: 90px;             /* Фиксированная ширина кота */
+        width: 100%; /* Кот занимает всю ширину своей ячейки */
         height: auto;
         border-radius: 10px;
         box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        flex-shrink: 0;          /* Запрещаем котам сжиматься, чтобы они всегда оставались одного размера */
+        object-fit: cover; /* Изображение заполнит ячейку, сохраняя пропорции */
     }
 
     #question {
         font-size: 2.2em;
+        text-align: center;
         margin-bottom: 20px;
         color: #333;
     }
 
     #numbers {
         display: flex;
-        justify-content: center; /* Центрируем кнопки с цифрами */
-        gap: 10px;               /* Добавляем расстояние между кнопками */
+        justify-content: center;
+        gap: 10px;
         margin-top: 15px;
     }
 
@@ -61,7 +68,7 @@
         color: #a0522d;
         cursor: pointer;
         transition: background-color 0.3s;
-        min-width: 50px; /* Минимальная ширина кнопки */
+        min-width: 50px;
     }
 </style>
 </head>
