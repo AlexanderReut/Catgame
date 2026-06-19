@@ -14,64 +14,62 @@
             justify-content: space-between; /* Разносим контент */
             align-items: center;
             overflow: hidden;
-            position: relative; /* Важно для абсолютного позиционирования */
         }
 
         h1, #question {
             color: #8b4513;
             text-align: center;
-            z-index: 2;
+            z-index: 10;
             width: 90%;
         }
 
-        /* Контейнер для зоны с котами */
+        /* Зона для котов занимает всё пространство над цифрами */
         #game-container {
             position: relative;
             width: 100vw;
-            height: 70vh; /* Зона для котов занимает верхние 70% экрана */
+            height: 70%; /* Верхняя часть экрана */
             max-height: calc(100vh - 200px);
-            pointer-events: none; /* Чтобы клик проходил сквозь пустые места */
-            margin-bottom: 20px; /* Отступ от цифр */
+            pointer-events: none;
         }
 
         .cat-picture {
             position: absolute;
-            width: 150px;
+            width: 160px; /* Увеличили размер котов */
             height: auto;
-            border-radius: 15px;
-            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
-            opacity: 0.9;
+            border-radius: 20px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            opacity: 0.95;
             user-select: none;
             pointer-events: auto;
             cursor: pointer;
             transition: transform 0.3s ease;
         }
         .cat-picture:hover {
-            transform: scale(1.05) rotate(-2deg);
-            z-index: 10;
+            transform: scale(1.07) rotate(-2deg);
+            z-index: 20;
         }
 
         /* --- СТИЛИ ДЛЯ ЦИФР ---
-           Используем Grid для сетки 3x3 внизу */
+           Сетка 3x3 внизу экрана */
         #numbers {
             display: grid;
-            grid-template-columns: repeat(3, 1fr); /* Три колонки */
+            grid-template-columns: repeat(3, 1fr); /* Три колонки равной ширины */
             gap: 15px;
             width: 90%;
             max-width: 360px;
             
-            bottom: 5%; /* Расположение от низа */
+            bottom: 20px; /* Прижимаем к самому низу */
             left: 50%;
             transform: translateX(-50%);
             
-            position: fixed; /* Фиксируем относительно окна браузера */
-            pointer-events: auto; /* Кнопки кликабельны */
-            z-index: 2;
+            position: fixed; /* Блок зафиксирован относительно окна */
+            pointer-events: auto;
+            z-index: 10;
         }
 
         button {
             font-size: 2em; /* Крупные цифры */
-            padding: 15px;
+            padding: 15px 25px;
             border-radius: 15px;
             border: none;
             background-color: #fff8dc;
@@ -113,8 +111,8 @@
         const numbersEl = document.getElementById('numbers');
 
         let correctAnswer;
-        const catSize = 150;
-        const MAX_ATTEMPTS = 50; // Лимит попыток найти место для кота
+        const catSize = 160;
+        const MAX_ATTEMPTS = 100; // Лимит попыток найти место
 
         const catImageLinks = [
              'https://www.youloveit.ru/uploads/gallery/thumb/995/youloveit_ru_kartinki_tri_kota52.png',
@@ -131,7 +129,7 @@
              questionEl.style.color = "#333";
 
              correctAnswer = Math.floor(Math.random() * (9 - 1 + 1)) + 1;
-             const placedCats = []; // Массив для хранения уже размещенных котов {x, y}
+             const placedCats = []; // Массив {x, y} для уже размещенных котов
 
              for (let i = 0; i < correctAnswer; i++) {
                   let attempts = 0;
@@ -140,37 +138,41 @@
 
                   while (!validPositionFound && attempts < MAX_ATTEMPTS) {
                       attempts++;
+                      
+                      // Генерируем случайную позицию по X
                       const xPos = Math.random() * (window.innerWidth - catSize);
                       
-                      // Максимальная высота Y - это верх блока с цифрами минус размер кота
+                      /*
+                       * Генерируем позицию по Y.
+                       * Используем координату верха блока #numbers как верхнюю границу.
+                       * Кот должен поместиться ПОЛНОСТЬЮ выше этой линии.
+                       */
                       const numbersRect = numbersEl.getBoundingClientRect();
-                      const maxY = window.innerHeight - numbersRect.height - catSize - 20; 
+                      const availableHeight = numbersRect.top - catSize;
 
-                      if (maxY <= 0) break; // Если места нет, выходим из цикла
+                      if (availableHeight <= 0) break; // Нет места для кота
                       
-                      const yPos = Math.random() * maxY;
+                      const yPos = Math.random() * availableHeight;
+
                       newCatPos = {x: xPos, y: yPos};
 
-                      // Проверяем пересечение с уже размещенными котами
+                      // Проверка пересечения с другими котами
                       if (placedCats.length === 0) {
                           validPositionFound = true;
                       } else {
                           let noCollision = true;
                           for (const pos of placedCats) {
-                              // Проверка пересечения прямоугольников (AABB)
                               const overlapX = newCatPos.x < pos.x + catSize && newCatPos.x + catSize > pos.x;
                               const overlapY = newCatPos.y < pos.y + catSize && newCatPos.y + catSize > pos.y;
                               if (overlapX && overlapY) {
                                   noCollision = false;
-                                  break; // Нашли пересечение, ищем новую точку
+                                  break;
                               }
                           }
                           validPositionFound = noCollision;
                       }
                   }
 
-                  // Если после всех попыток место так и не найдено, просто пропускаем этого кота,
-                  // чтобы игра не зависла в бесконечном цикле.
                   if (validPositionFound) {
                       placedCats.push(newCatPos);
 
@@ -185,31 +187,30 @@
 
                       gameContainer.appendChild(catImg);
                   }
-             }
-
-             for (let num = 1; num <= 9; num++) {
-                  const btn = document.createElement('button');
-                  btn.textContent = num;
-                  btn.value = num;
-
-                  btn.addEventListener('click', function() {
-                      if (parseInt(this.value) === correctAnswer) {
-                          this.classList.add('correct');
-                          questionEl.textContent = "🎉 Верно!";
-                          questionEl.style.color = "#2e7d32";
-                      } else {
-                          this.classList.add('wrong');
-                          questionEl.textContent = `😿 Неправильно! Было ${correctAnswer}.`;
-                          questionEl.style.color = "#c62828";
-                      }
-                      document.querySelectorAll('#numbers button').forEach(b => b.disabled = true);
-                      setTimeout(startGame, 2000);
-                  });
-                  numbersEl.appendChild(btn);
               }
+
+              for (let num = 1; num <= 9; num++) {
+                   const btn = document.createElement('button');
+                   btn.textContent = num;
+                   btn.value = num;
+
+                   btn.addEventListener('click', function() {
+                       if (parseInt(this.value) === correctAnswer) {
+                           this.classList.add('correct');
+                           questionEl.textContent = "🎉 Верно!";
+                           questionEl.style.color = "#2e7d32";
+                       } else {
+                           this.classList.add('wrong');
+                           questionEl.textContent = `😿 Неправильно! Было ${correctAnswer}.`;
+                           questionEl.style.color = "#c62828";
+                       }
+                       document.querySelectorAll('#numbers button').forEach(b => b.disabled = true);
+                       setTimeout(startGame, 2000);
+                   });
+                   numbersEl.appendChild(btn);
+               }
          }
 
-         // Запуск игры после полной загрузки страницы
          window.onload = startGame;
     </script>
 </body>
