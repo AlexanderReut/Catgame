@@ -24,19 +24,19 @@
             width: 90%;
         }
 
-        /* Зона над цифрами, где могут быть коты */
+        /* Зона для котов - занимает всё пространство над цифрами */
         .game-area {
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
             bottom: 35%; /* Котам доступна верхняя часть экрана */
-            pointer-events: none; /* Клик проходит сквозь пустые места */
+            pointer-events: none; /* Чтобы клик проходил сквозь пустые места */
         }
 
         .cat-picture {
             position: absolute;
-            width: 170px;
+            width: 170px; /* Увеличенный размер кота */
             height: auto;
             border-radius: 20px;
             box-shadow: 0 12px 24px rgba(0,0,0,0.2);
@@ -57,7 +57,7 @@
         #numbers {
             display: grid;
             grid-template-columns: repeat(3, 1fr); /* Три колонки равной ширины */
-            gap: 20px; /* Увеличенное расстояние */
+            gap: 20px; /* Расстояние между кнопками */
             
             bottom: 5%; /* Расположение от низа */
             left: 50%;
@@ -125,15 +125,17 @@
         ];
 
         function startGame() {
-             // Очистка предыдущего раунда
+             // 1. Очистка предыдущего раунда
              gameArea.innerHTML = '';
              numbersEl.innerHTML = '';
              questionEl.textContent = "Сколько котов на крыше?";
              questionEl.style.color = "#333";
 
+             // 2. Генерация нового ответа
              correctAnswer = Math.floor(Math.random() * (9 - 1 + 1)) + 1;
-             const placedCats = []; // Массив {x, y} для уже размещенных котов
 
+             // 3. Создание и размещение котов
+             const placedCats = [];
              for (let i = 0; i < correctAnswer; i++) {
                   let attempts = 0;
                   let validPositionFound = false;
@@ -142,4 +144,68 @@
                   while (!validPositionFound && attempts < MAX_ATTEMPTS) {
                       attempts++;
                       
-                      const xPos = Math.random() * (window.
+                      const xPos = Math.random() * (window.innerWidth - catSize);
+                      const yPos = Math.random() * (gameArea.clientHeight - catSize);
+
+                      newCatPos = {x: xPos, y: yPos};
+
+                      // Проверяем пересечение с уже размещенными котами
+                      if (placedCats.length === 0) {
+                          validPositionFound = true;
+                      } else {
+                          let noCollision = true;
+                          for (const pos of placedCats) {
+                              const overlapX = newCatPos.x < pos.x + catSize && newCatPos.x + catSize > pos.x;
+                              const overlapY = newCatPos.y < pos.y + catSize && newCatPos.y + catSize > pos.y;
+                              if (overlapX && overlapY) {
+                                  noCollision = false;
+                                  break;
+                              }
+                          }
+                          validPositionFound = noCollision;
+                      }
+                  }
+
+                  if (validPositionFound) {
+                      placedCats.push(newCatPos);
+
+                      const randomIndex = Math.floor(Math.random() * catImageLinks.length);
+                      const imgSrc = catImageLinks[randomIndex];
+
+                      const catImg = document.createElement('img');
+                      catImg.src = imgSrc;
+                      catImg.classList.add('cat-picture');
+                      catImg.style.left = `${newCatPos.x}px`;
+                      catImg.style.top = `${newCatPos.y}px`;
+
+                      gameArea.appendChild(catImg);
+                  }
+              }
+
+              // 4. Создание кнопок с цифрами (в самом конце)
+              for (let num = 1; num <= 9; num++) {
+                   const btn = document.createElement('button');
+                   btn.textContent = num;
+                   btn.value = num;
+
+                   btn.addEventListener('click', function() {
+                       if (parseInt(this.value) === correctAnswer) {
+                           this.classList.add('correct');
+                           questionEl.textContent = "🎉 Верно!";
+                           questionEl.style.color = "#2e7d32";
+                       } else {
+                           this.classList.add('wrong');
+                           questionEl.textContent = `😿 Неправильно! Было ${correctAnswer}.`;
+                           questionEl.style.color = "#c62828";
+                       }
+                       document.querySelectorAll('#numbers button').forEach(b => b.disabled = true);
+                       setTimeout(startGame, 2000);
+                   });
+                   numbersEl.appendChild(btn);
+               }
+         }
+
+         window.onload = startGame;
+    </script>
+</body>
+</html>
