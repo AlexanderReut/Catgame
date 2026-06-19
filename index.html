@@ -8,104 +8,112 @@
             font-family: 'Comic Sans MS', cursive, sans-serif;
             background-color: #faf0e6;
             margin: 0;
-            overflow: hidden; /* Убираем скролл */
-            position: relative;
             height: 100vh;
+            overflow: hidden; /* Убираем прокрутку */
+            position: relative; /* Это важно для абсолютного позиционирования котов */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between; /* Разносим контент по высоте */
         }
 
         h1 {
             color: #8b4513;
             text-align: center;
             padding-top: 20px;
-            z-index: 10;
+            z-index: 1;
         }
 
         #question {
             text-align: center;
-            font-size: 2.5em;
-            margin-bottom: 20px;
+            font-size: 2em;
+            margin: 20px 0;
             color: #333;
-            z-index: 10;
+            z-index: 1;
         }
 
-        /* --- ИЗМЕНЕНИЯ ДЛЯ ЦИФР ---
-           Используем GRID для создания сетки 3x3 */
+        /* --- СТИЛИ ДЛЯ ЦИФР ---
+           Используем Grid для сетки 3x3 и фиксируем блок внизу */
         #numbers {
             display: grid;
             grid-template-columns: repeat(3, 1fr); /* Три колонки равной ширины */
             gap: 15px; /* Расстояние между кнопками */
+            width: 90%;
+            max-width: 360px; /* Ограничиваем макс. ширину */
+            margin: 0 auto; /* Центрируем блок */
             
-            justify-content: center; /* Центрируем сетку по горизонтали */
-            
-            bottom: 15%; /* Располагаем блок выше от низа */
+            bottom: 10%; /* Расположение от низа экрана */
             left: 50%;
             transform: translateX(-50%);
             
-            width: 90%; /* Ширина сетки */
-            max-width: 360px; /* Максимальная ширина для красоты */
-            
-            z-index: 10;
+            position: fixed; /* Блок зафиксирован относительно окна браузера */
             pointer-events: auto;
+            z-index: 10;
         }
 
         button {
-            font-size: 2.5em; /* Очень крупные цифры */
-            padding: 20px;
-            border-radius: 18px;
+            font-size: 2em; /* Крупные цифры */
+            padding: 15px;
+            border-radius: 15px;
             border: none;
             background-color: #fff8dc;
             color: #a0522d;
             cursor: pointer;
-            box-shadow: 0 6px #d2691e;
+            box-shadow: 0 4px #d2691e;
             transition: all 0.3s ease;
-            min-width: 80px;
+            min-width: 70px;
         }
 
         button.correct {
              background-color: #98fb98;
              color: #2e7d32;
-             box-shadow: 0 6px #4CAF50;
+             box-shadow: 0 4px #4CAF50;
         }
 
         button.wrong {
              background-color: #ff6347;
              color: white;
-             box-shadow: 0 6px #FF4500;
+             box-shadow: 0 4px #FF4500;
         }
 
         .cat-picture {
             position: absolute;
-            width: 180px; /* Увеличили размер котов */
+            width: 150px; /* Размер кота */
             height: auto;
-            border-radius: 20px;
-            box-shadow: 0 12px 24px rgba(0,0,0,0.2), inset 0 0 0 4px rgba(255,255,255,0.3);
-            opacity: 0.95;
+            border-radius: 15px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+            opacity: 0.9;
             user-select: none;
             pointer-events: auto;
             cursor: pointer;
-            transition: transform 0.3s ease, filter 0.3s ease;
+            transition: transform 0.3s ease;
         }
         .cat-picture:hover {
-            transform: scale(1.1) rotate(3deg);
-            filter: brightness(1.1);
+            transform: scale(1.05);
             z-index: 20;
         }
     </style>
 </head>
 <body>
 
+    <!-- Заголовок -->
     <h1>Считаем котов!</h1>
+
+    <!-- Контейнер для котов -->
     <div id="game-container"></div>
+
+    <!-- Вопрос -->
     <div id="question">Сколько котов на крыше?</div>
+
+    <!-- Кнопки с цифрами -->
     <div id="numbers"></div>
 
     <script>
         const gameContainer = document.getElementById('game-container');
         const questionEl = document.getElementById('question');
-        const numbersEl = getComputedStyle(document.getElementById('numbers')); // Получаем стили чисел
-        
-        let correctAnswer = Math.floor(Math.random() * (9 - 1 + 1)) + 1;
-        const catSize = 180;
+        const numbersEl = document.getElementById('numbers');
+
+        let correctAnswer;
+        const catSize = 150;
 
         const catImageLinks = [
              'https://placekitten.com/200/200',
@@ -114,69 +122,54 @@
         ];
 
         function startGame() {
+             // Очистка предыдущего раунда
              gameContainer.innerHTML = '';
-             numbersEl.innerHTML = ''; // Очищаем кнопки перед созданием новых
+             numbersEl.innerHTML = '';
              questionEl.textContent = "Сколько котов на крыше?";
              questionEl.style.color = "#333";
+
+             // Генерация нового ответа
              correctAnswer = Math.floor(Math.random() * (9 - 1 + 1)) + 1;
 
-             const placedCats = [];
-
+             /*
+              * Получаем координаты блока с цифрами один раз,
+              * чтобы коты не появлялись под ним.
+              */
+             const numbersRect = document.getElementById('numbers').getBoundingClientRect();
+             
              for (let i = 0; i < correctAnswer; i++) {
                   let validPositionFound = false;
                   let newCatPos;
-                  
+
+                  // Пробуем найти валидную позицию
                   while (!validPositionFound) {
                       const xPos = Math.random() * (window.innerWidth - catSize);
                       
-                      /*
-                       * Вычисляем верхнюю границу для Y.
-                       * Мы берем координату top блока #numbers и вычитаем высоту кота,
-                       * чтобы он гарантированно поместился над числами.
-                       */
-                      const numbersRect = document.getElementById('numbers').getBoundingClientRect();
+                      // Максимальная высота Y - это верх блока с цифрами минус размер кота
                       const maxY = numbersRect.top - catSize;
-
-                      if (maxY <= 0) break; // Если места нет (маленький экран), прерываем цикл
+                      
+                      if (maxY <= 0) break; // Если места нет, выходим из цикла
                       
                       const yPos = Math.random() * maxY;
 
                       newCatPos = {x: xPos, y: yPos};
-
-                      // Проверка на пересечение с другими котами
-                      if (placedCats.length === 0) {
-                          validPositionFound = true;
-                      } else {
-                          let noCollision = true;
-                          for (const pos of placedCats) {
-                              const overlapX = newCatPos.x < pos.x + catSize && newCatPos.x + catSize > pos.x;
-                              const overlapY = newCatPos.y < pos.y + catSize && newCatPos.y + catSize > pos.y;
-                              if (overlapX && overlapY) {
-                                  noCollision = false;
-                                  break;
-                              }
-                          }
-                          validPositionFound = noCollision;
-                      }
+                      validPositionFound = true;
                   }
 
-                  if (validPositionFound) {
-                      placedCats.push(newCatPos);
+                  // Создаем картинку кота
+                  const randomIndex = Math.floor(Math.random() * catImageLinks.length);
+                  const imgSrc = catImageLinks[randomIndex];
 
-                      const randomIndex = Math.floor(Math.random() * catImageLinks.length);
-                      const imgSrc = catImageLinks[randomIndex];
+                  const catImg = document.createElement('img');
+                  catImg.src = imgSrc;
+                  catImg.classList.add('cat-picture');
+                  catImg.style.left = `${newCatPos.x}px`;
+                  catImg.style.top = `${newCatPos.y}px`;
 
-                      const catImg = document.createElement('img');
-                      catImg.src = imgSrc;
-                      catImg.classList.add('cat-picture');
-                      catImg.style.left = `${newCatPos.x}px`;
-                      catImg.style.top = `${newCatPos.y}px`;
-
-                      gameContainer.appendChild(catImg);
-                  }
+                  gameContainer.appendChild(catImg);
              }
 
-             // Создаем кнопки в сетке 3x3
+             // Создание кнопок с цифрами
              for (let num = 1; num <= 9; num++) {
                   const btn = document.createElement('button');
                   btn.textContent = num;
@@ -199,6 +192,7 @@
               }
          }
 
+         // Запуск игры при загрузке страницы
          startGame();
     </script>
 </body>
