@@ -4,67 +4,65 @@
     <meta charset="UTF-8">
     <title>Считаем котов!</title>
     <style>
-        body {
-            font-family: 'Comic Sans MS', cursive, sans-serif;
-            background-color: #f5f5dc;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 150vh;
-            margin: 20;
-        }
+    body {
+        font-family: 'Comic Sans MS', cursive, sans-serif;
+        background-color: #f5f5dc;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        margin: 0;
+    }
 
-        h1 {
-            color: #8b4513;
-        }
+    h1 {
+        color: #8b4513;
+    }
 
-        #game-container {
-            display: flex;
-            justify-content: center;
-            gap: 20px; /* Расстояние между котами */
-            margin-bottom: 25px;
-        }
+    /* --- ИЗМЕНЕНИЯ НАЧИНАЮТСЯ ЗДЕСЬ --- */
+    #game-container {
+        display: flex;           /* Делаем контейнер гибким */
+        justify-content: space-evenly; /* Равномерно распределяет котов, оставляя отступы у краев */
+                                /* Можно также использовать 'center' или 'space-around' */
+        gap: 20px;               /* Расстояние между котами */
+        width: 100%;             /* Занимаем всю доступную ширину */
+        max-width: 600px;        /* Ограничиваем максимальную ширину, чтобы игра не растянулась на огромных экранах */
+        padding: 0 20px;         /* Небольшой внутренний отступ для красоты */
+        overflow-x: hidden;      /* Скрываем все, что выходит за левый/правый край */
+        margin-bottom: 25px;
+    }
+    /* --- ИЗМЕНЕНИЯ ЗАКАНЧИВАЮТСЯ ЗДЕСЬ --- */
 
-        .cat-picture {
-            width: auto;
-            height: auto;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        }
+    .cat-picture {
+        width: 90px; /* Немного уменьшим размер котов, чтобы они точно поместились */
+        height: auto;
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
 
-        #question {
-            font-size: 2.2em;
-            margin-bottom: 20px;
-            color: #333;
-        }
+    #question {
+        font-size: 2.2em;
+        margin-bottom: 20px;
+        color: #333;
+    }
 
-        #numbers {
-            display: flex;
-        }
+    #numbers {
+        display: flex;
+        justify-content: center; /* Центрируем ряд кнопок */
+    }
 
-        button {
-            font-size: 1.5em;
-            padding: 12px 20px;
-            margin: 0 8px;
-            border-radius: 12px;
-            border: none;
-            background-color: #fff8dc;
-            color: #a0522d;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-
-        button.correct {
-             background-color: #98fb98; /* Зеленый */
-             color: #006400;
-        }
-
-        button.wrong {
-             background-color: #f08080; /* Красный */
-             color: #8b0000;
-        }
-    </style>
+    button {
+        font-size: 1.5em;
+        padding: 12px 20px;
+        margin: 0 8px;
+        border-radius: 12px;
+        border: none;
+        background-color: #fff8dc;
+        color: #a0522d;
+        cursor: pointer;
+        transition: background-color 0.3s;
+    }
+</style>
 </head>
 <body>
 
