@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>Считаем котов!</title>
     <style>
+        /* Базовые стили для всей страницы */
         body {
             font-family: 'Comic Sans MS', cursive, sans-serif;
             background-color: #faf0e6;
@@ -11,41 +12,44 @@
             height: 100vh;
             display: flex;
             flex-direction: column;
-            justify-content: space-between; /* Разносим контент */
+            justify-content: space-between; /* Разносим контент по вертикали */
             align-items: center;
-            overflow: hidden;
+            overflow: hidden; /* Убираем прокрутку */
+            position: relative; /* Это важно для абсолютного позиционирования котов */
         }
 
         h1, #question {
             color: #8b4513;
             text-align: center;
-            z-index: 10;
+            z-index: 2; /* Выше цифр */
             width: 90%;
         }
 
-        /* Зона для котов занимает всё пространство над цифрами */
+        /* Зона, где будут появляться коты */
         #game-container {
-            position: relative;
-            width: 100vw;
-            height: 70%; /* Верхняя часть экрана */
-            max-height: calc(100vh - 200px);
-            pointer-events: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 35%; /* Котам доступна верхняя часть экрана */
+            pointer-events: none; /* Чтобы можно было кликать сквозь пустые места */
         }
 
         .cat-picture {
             position: absolute;
-            width: 160px; /* Увеличили размер котов */
+            width: 170px; /* Увеличенный размер */
             height: auto;
             border-radius: 20px;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            box-shadow: 0 12px 24px rgba(0,0,0,0.2);
             opacity: 0.95;
             user-select: none;
-            pointer-events: auto;
+            pointer-events: auto; /* Включаем клики на самих картинках */
             cursor: pointer;
-            transition: transform 0.3s ease;
+            transition: transform 0.3s ease, filter 0.3s ease;
         }
         .cat-picture:hover {
-            transform: scale(1.07) rotate(-2deg);
+            transform: scale(1.08) rotate(-2deg);
+            filter: brightness(1.1);
             z-index: 20;
         }
 
@@ -55,20 +59,21 @@
             display: grid;
             grid-template-columns: repeat(3, 1fr); /* Три колонки равной ширины */
             gap: 15px;
-            width: 90%;
-            max-width: 360px;
+            padding: 15px;
             
-            bottom: 20px; /* Прижимаем к самому низу */
+            bottom: 5%; /* Расположение от низа */
             left: 50%;
             transform: translateX(-50%);
             
-            position: fixed; /* Блок зафиксирован относительно окна */
-            pointer-events: auto;
-            z-index: 10;
+            position: fixed; /* Блок зафиксирован относительно окна браузера */
+            pointer-events: auto; /* Кнопки кликабельны */
+            z-index: 1; /* Ниже котов */
+            background-color: rgba(255, 255, 255, 0.8); /* Полупрозрачный фон для читаемости */
+            border-radius: 20px;
         }
 
         button {
-            font-size: 2em; /* Крупные цифры */
+            font-size: 2em; /* Очень крупные цифры */
             padding: 15px 25px;
             border-radius: 15px;
             border: none;
@@ -111,15 +116,13 @@
         const numbersEl = document.getElementById('numbers');
 
         let correctAnswer;
-        const catSize = 160;
+        const catSize = 170;
         const MAX_ATTEMPTS = 100; // Лимит попыток найти место
 
         const catImageLinks = [
-             'https://www.youloveit.ru/uploads/gallery/thumb/995/youloveit_ru_kartinki_tri_kota52.png',
-    'https://www.youloveit.ru/uploads/gallery/thumb/995/youloveit_ru_kartinki_tri_kota46.png',
-    'https://www.youloveit.ru/uploads/gallery/thumb/995/youloveit_ru_kartinki_tri_kota44.png',
-'https://www.youloveit.ru/uploads/gallery/thumb/995/youloveit_ru_kartinki_tri_kota39.png',
-'https://www.youloveit.ru/uploads/gallery/thumb/995/youloveit_ru_kartinki_tri_kota37.png'
+             'https://placekitten.com/200/200',
+             'https://placekitten.com/201/201',
+             'https://placekitten.com/202/202'
         ];
 
         function startGame() {
@@ -139,17 +142,16 @@
                   while (!validPositionFound && attempts < MAX_ATTEMPTS) {
                       attempts++;
                       
-                      // Генерируем случайную позицию по X
                       const xPos = Math.random() * (window.innerWidth - catSize);
                       
                       /*
-                       * Генерируем позицию по Y.
-                       * Используем координату верха блока #numbers как верхнюю границу.
-                       * Кот должен поместиться ПОЛНОСТЬЮ выше этой линии.
+                       * Получаем границы зоны для котов один раз за итерацию.
+                       * Все координаты Y будут генерироваться только внутри этой зоны,
+                       * поэтому картинки НИКОГДА не появятся ниже цифр.
                        */
-                      const numbersRect = numbersEl.getBoundingClientRect();
-                      const availableHeight = numbersRect.top - catSize;
-
+                      const containerRect = gameContainer.getBoundingClientRect();
+                      const availableHeight = containerRect.height - catSize;
+                      
                       if (availableHeight <= 0) break; // Нет места для кота
                       
                       const yPos = Math.random() * availableHeight;
