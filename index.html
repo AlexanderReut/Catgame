@@ -22,28 +22,35 @@
 
         #question {
             text-align: center;
-            font-size: 2.5em; /* Увеличили шрифт вопроса */
+            font-size: 2.5em;
             margin-bottom: 20px;
             color: #333;
             z-index: 10;
         }
 
         /* --- ИЗМЕНЕНИЯ ДЛЯ ЦИФР ---
-           Размещаем блок с цифрами еще выше и крупнее */
+           Используем GRID для создания сетки 3x3 */
         #numbers {
-            position: fixed;
-            bottom: 30%; /* Подняли цифры выше */
+            display: grid;
+            grid-template-columns: repeat(3, 1fr); /* Три колонки равной ширины */
+            gap: 15px; /* Расстояние между кнопками */
+            
+            justify-content: center; /* Центрируем сетку по горизонтали */
+            
+            bottom: 15%; /* Располагаем блок выше от низа */
             left: 50%;
             transform: translateX(-50%);
-            display: flex;
-            gap: 20px; /* Увеличили расстояние между кнопками */
+            
+            width: 90%; /* Ширина сетки */
+            max-width: 360px; /* Максимальная ширина для красоты */
+            
             z-index: 10;
             pointer-events: auto;
         }
 
         button {
-            font-size: 2em; /* Сильно увеличили шрифт цифр */
-            padding: 18px 35px;
+            font-size: 2.5em; /* Очень крупные цифры */
+            padding: 20px;
             border-radius: 18px;
             border: none;
             background-color: #fff8dc;
@@ -51,7 +58,7 @@
             cursor: pointer;
             box-shadow: 0 6px #d2691e;
             transition: all 0.3s ease;
-            min-width: 70px; /* Чтобы кнопки не были слишком узкими */
+            min-width: 80px;
         }
 
         button.correct {
@@ -68,19 +75,19 @@
 
         .cat-picture {
             position: absolute;
-            width: 150px;
+            width: 180px; /* Увеличили размер котов */
             height: auto;
-            border-radius: 15px;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.2), inset 0 0 0 3px rgba(255,255,255,0.2); /* Красивая рамка-тень */
+            border-radius: 20px;
+            box-shadow: 0 12px 24px rgba(0,0,0,0.2), inset 0 0 0 4px rgba(255,255,255,0.3);
             opacity: 0.95;
             user-select: none;
             pointer-events: auto;
             cursor: pointer;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            transition: transform 0.3s ease, filter 0.3s ease;
         }
         .cat-picture:hover {
-            transform: scale(1.08) rotate(2deg);
-            box-shadow: 0 15px 30px rgba(0,0,0,0.3);
+            transform: scale(1.1) rotate(3deg);
+            filter: brightness(1.1);
             z-index: 20;
         }
     </style>
@@ -95,51 +102,53 @@
     <script>
         const gameContainer = document.getElementById('game-container');
         const questionEl = document.getElementById('question');
-        const numbersEl = document.getElementById('numbers');
-
+        const numbersEl = getComputedStyle(document.getElementById('numbers')); // Получаем стили чисел
+        
         let correctAnswer = Math.floor(Math.random() * (9 - 1 + 1)) + 1;
-        const catSize = 150;
-        const safeZoneBottomPercent = 30; // Процент снизу, где нельзя размещать котов
+        const catSize = 180;
 
         const catImageLinks = [
-             'https://www.youloveit.ru/uploads/gallery/thumb/995/youloveit_ru_kartinki_tri_kota52.png',
-    'https://www.youloveit.ru/uploads/gallery/thumb/995/youloveit_ru_kartinki_tri_kota46.png',
-    'https://www.youloveit.ru/uploads/gallery/thumb/995/youloveit_ru_kartinki_tri_kota44.png',
-'https://www.youloveit.ru/uploads/gallery/thumb/995/youloveit_ru_kartinki_tri_kota39.png',
-'https://www.youloveit.ru/uploads/gallery/thumb/995/youloveit_ru_kartinki_tri_kota37.png'
+             'https://placekitten.com/200/200',
+             'https://placekitten.com/201/201',
+             'https://placekitten.com/202/202'
         ];
 
         function startGame() {
              gameContainer.innerHTML = '';
-             numbersEl.innerHTML = '';
+             numbersEl.innerHTML = ''; // Очищаем кнопки перед созданием новых
              questionEl.textContent = "Сколько котов на крыше?";
              questionEl.style.color = "#333";
              correctAnswer = Math.floor(Math.random() * (9 - 1 + 1)) + 1;
 
-             const placedCats = []; // Массив для хранения позиций {x, y}
-             const maxAttempts = 100; // Лимит попыток найти место, чтобы избежать зацикливания
+             const placedCats = [];
 
              for (let i = 0; i < correctAnswer; i++) {
-                  let attempts = 0;
                   let validPositionFound = false;
                   let newCatPos;
-
-                  while (!validPositionFound && attempts < maxAttempts) {
-                      attempts++;
-                      // Вычисляем безопасную зону по высоте
-                      const safeHeight = window.innerHeight * (safeZoneBottomPercent / 100);
-                      
+                  
+                  while (!validPositionFound) {
                       const xPos = Math.random() * (window.innerWidth - catSize);
-                      const yPos = Math.random() * (window.innerHeight - catSize - safeHeight);
+                      
+                      /*
+                       * Вычисляем верхнюю границу для Y.
+                       * Мы берем координату top блока #numbers и вычитаем высоту кота,
+                       * чтобы он гарантированно поместился над числами.
+                       */
+                      const numbersRect = document.getElementById('numbers').getBoundingClientRect();
+                      const maxY = numbersRect.top - catSize;
+
+                      if (maxY <= 0) break; // Если места нет (маленький экран), прерываем цикл
+                      
+                      const yPos = Math.random() * maxY;
 
                       newCatPos = {x: xPos, y: yPos};
 
+                      // Проверка на пересечение с другими котами
                       if (placedCats.length === 0) {
                           validPositionFound = true;
                       } else {
                           let noCollision = true;
                           for (const pos of placedCats) {
-                              // Проверяем пересечение прямоугольников
                               const overlapX = newCatPos.x < pos.x + catSize && newCatPos.x + catSize > pos.x;
                               const overlapY = newCatPos.y < pos.y + catSize && newCatPos.y + catSize > pos.y;
                               if (overlapX && overlapY) {
@@ -151,7 +160,6 @@
                       }
                   }
 
-                  // Если позиция найдена, добавляем кота
                   if (validPositionFound) {
                       placedCats.push(newCatPos);
 
@@ -168,6 +176,7 @@
                   }
              }
 
+             // Создаем кнопки в сетке 3x3
              for (let num = 1; num <= 9; num++) {
                   const btn = document.createElement('button');
                   btn.textContent = num;
@@ -176,7 +185,7 @@
                   btn.addEventListener('click', function() {
                       if (parseInt(this.value) === correctAnswer) {
                           this.classList.add('correct');
-                          questionEl.textContent = "🎉 Верно! Мур-мур!";
+                          questionEl.textContent = "🎉 Верно!";
                           questionEl.style.color = "#2e7d32";
                       } else {
                           this.classList.add('wrong');
