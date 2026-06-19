@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Считаем котов!</title>
-    <style>
+   <style>
     body {
         font-family: 'Comic Sans MS', cursive, sans-serif;
         background-color: #f5f5dc;
@@ -19,25 +19,24 @@
         color: #8b4513;
     }
 
-    /* --- ИЗМЕНЕНИЯ НАЧИНАЮТСЯ ЗДЕСЬ --- */
+    /* --- ИЗМЕНЕНИЯ ДЛЯ МНОГОСТРОЧНОСТИ --- */
     #game-container {
-        display: flex;           /* Делаем контейнер гибким */
-        justify-content: space-evenly; /* Равномерно распределяет котов, оставляя отступы у краев */
-                                /* Можно также использовать 'center' или 'space-around' */
-        gap: 20px;               /* Расстояние между котами */
-        width: 100%;             /* Занимаем всю доступную ширину */
-        max-width: 600px;        /* Ограничиваем максимальную ширину, чтобы игра не растянулась на огромных экранах */
-        padding: 0 20px;         /* Небольшой внутренний отступ для красоты */
-        overflow-x: hidden;      /* Скрываем все, что выходит за левый/правый край */
+        display: flex;           /* Включаем гибкий контейнер */
+        flex-wrap: wrap;         /* ЭТО ГЛАВНАЯ НАСТРОЙКА: разрешаем перенос элементов на новую строку */
+        gap: 20px;               /* Расстояние между котами (и между рядами) */
+        width: 100%;
+        max-width: 600px;        /* Ограничиваем общую ширину игры */
+        padding: 0 20px;         /* Отступы слева и справа для красоты */
         margin-bottom: 25px;
+        justify-content: center;/* Центрируем все содержимое контейнера */
     }
-    /* --- ИЗМЕНЕНИЯ ЗАКАНЧИВАЮТСЯ ЗДЕСЬ --- */
 
     .cat-picture {
-        width: 90px; /* Немного уменьшим размер котов, чтобы они точно поместились */
+        width: 90px;             /* Фиксированная ширина кота */
         height: auto;
         border-radius: 10px;
         box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        flex-shrink: 0;          /* Запрещаем котам сжиматься, чтобы они всегда оставались одного размера */
     }
 
     #question {
@@ -48,19 +47,21 @@
 
     #numbers {
         display: flex;
-        justify-content: center; /* Центрируем ряд кнопок */
+        justify-content: center; /* Центрируем кнопки с цифрами */
+        gap: 10px;               /* Добавляем расстояние между кнопками */
+        margin-top: 15px;
     }
 
     button {
         font-size: 1.5em;
         padding: 12px 20px;
-        margin: 0 8px;
         border-radius: 12px;
         border: none;
         background-color: #fff8dc;
         color: #a0522d;
         cursor: pointer;
         transition: background-color 0.3s;
+        min-width: 50px; /* Минимальная ширина кнопки */
     }
 </style>
 </head>
