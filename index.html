@@ -23,7 +23,7 @@
             height: 400px;
             background-color: #fff;
             box-shadow: 0 8px 30px rgba(0,0,0,0.2);
-            touch-action: none; /* Критически важно для отключения прокрутки браузера */
+            touch-action: none; /* Отключает прокрутку страницы при касании */
         }
 
         .wall {
@@ -51,7 +51,6 @@
             left: 360px;
         }
 
-        /* Стили для сообщения */
         #message-overlay {
             position: absolute;
             top: 0; left: 0;
@@ -71,7 +70,6 @@
             margin-top: 20px;
             padding: 12px 30px;
             font-size: 18px;
-            cursor: pointer;
         }
     </style>
 </head>
@@ -109,35 +107,30 @@
 
         let isGameActive = true; // Флаг для проверки состояния игры
 
-        // --- Логика управления ---
-
+        // Управление касанием на игровом поле
         gameContainer.addEventListener('touchmove', function(event) {
              if (!isGameActive) return; // Если игра окончена, ничего не делаем
+             event.preventDefault(); // Отменяем прокрутку страницы
 
-             event.preventDefault(); // Отменяем стандартное поведение (прокрутку)
-
-             // Получаем координаты касания относительно игрового поля
              const touch = event.touches[0];
              const rect = gameContainer.getBoundingClientRect();
+
+             // Вычисляем новые координаты, чтобы шарик был под пальцем
              const x = touch.clientX - rect.left - (player.offsetWidth / 2);
              const y = touch.clientY - rect.top - (player.offsetHeight / 2);
 
-             // Устанавливаем новые координаты игроку
              player.style.left = x + 'px';
              player.style.top = y + 'px';
 
-             // Немедленно проверяем столкновение после каждого движения
              checkCollision();
          });
 
-         // --- Логика столкновений ---
-
+         // Проверка столкновений
          function checkCollision() {
              const playerRect = player.getBoundingClientRect();
-             const finishRect = finish.getBoundingClientRect();
+             const containerRect = gameContainer.getBoundingClientRect();
 
              // Проверка выхода за границы лабиринта
-             const containerRect = gameContainer.getBoundingClientRect();
              if (playerRect.left < containerRect.left ||
                  playerRect.right > containerRect.right ||
                  playerRect.top < containerRect.top ||
@@ -156,19 +149,19 @@
              }
 
              // Проверка достижения финиша
+             const finishRect = finish.getBoundingClientRect();
              if (isIntersecting(playerRect, finishRect)) {
                  endGame(true);
                  return;
              }
          }
 
-         // Вспомогательная функция для проверки пересечения двух прямоугольников
+         // Вспомогательная функция для проверки пересечения двух элементов
          function isIntersecting(a, b) {
              return a.right > b.left && a.left < b.right && a.bottom > b.top && a.top < b.bottom;
          }
 
-         // --- Завершение и сброс игры ---
-
+         // Завершение игры
          function endGame(isWin) {
              isGameActive = false; // Останавливаем игру
 
@@ -182,12 +175,13 @@
              messageOverlay.style.display = 'flex';
          }
 
+         // Сброс игры для новой попытки
          function resetGame() {
-             // Возвращаем игрока в начальную позицию
              player.style.left = '10px';
              player.style.top = '10px';
-
-             // Сбрасываем сообщение и флаг игры
              messageOverlay.style.display = 'none';
              isGameActive = true;
          }
+    </script>
+</body>
+</html>
