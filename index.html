@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Детский лабиринт</title>
     <style>
         body {
@@ -11,6 +11,7 @@
             background-color: #f0f8ff;
             margin: 0;
             padding: 20px;
+            touch-action: none; /* Отключаем стандартные жесты браузера */
         }
         #game-container {
             position: relative;
@@ -92,7 +93,7 @@
         let playerY = 20;
         const exitX = 265;
         const exitY = 265;
-        const step = 5;
+        const step = 10; // Увеличил шаг для лучшей отзывчивости
 
         // Инициализация игры
         function initGame() {
@@ -160,42 +161,49 @@
             }
         }
 
-        // Управление с помощью касаний (для планшетов)
+        // Улучшенное сенсорное управление
         let startX, startY;
+
         container.addEventListener('touchstart', function(e) {
+            e.preventDefault(); // Предотвращаем стандартные действия браузера
             startX = e.touches[0].clientX;
             startY = e.touches[0].clientY;
         });
 
         container.addEventListener('touchend', function(e) {
+            e.preventDefault();
             const endX = e.changedTouches[0].clientX;
             const endY = e.changedTouches[0].clientY;
             
             const diffX = endX - startX;
             const diffY = endY - startY;
-            
+            const threshold = 30; // Минимальный порог движения для распознавания свайпа
+
+            // Определяем направление свайпа
             if (Math.abs(diffX) > Math.abs(diffY)) {
                 // Горизонтальное движение
-                if (diffX > 0) movePlayer(step, 0); // Вправо
-                else movePlayer(-step, 0); // Влево
+                if (Math.abs(diffX) > threshold) {
+                    if (diffX > 0) movePlayer(step, 0); // Вправо
+                    else movePlayer(-step, 0); // Влево
+                }
             } else {
                 // Вертикальное движение
-                if (diffY > 0) movePlayer(0, step); // Вниз
-                else movePlayer(0, -step); // Вверх
+                if (Math.abs(diffY) > threshold) {
+                    if (diffY > 0) movePlayer(0, step); // Вниз
+                    else movePlayer(0, -step); // Вверх
+                }
             }
         });
 
-        // Сброс игры
-        function resetGame() {
-            playerX = 20;
-            playerY = 20;
-            initGame();
-            message.textContent = 'Двигай шарик пальцем!';
-            message.style.color = '#333';
-        }
-
-        // Запуск игры
-        initGame();
-    </script>
-</body>
-</html>
+        // Обработка кликов для тестирования на ПК
+        container.addEventListener('click', function(e) {
+            const rect = container.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const clickY = e.clientY - rect.top;
+            
+            // Двигаем к месту клика с небольшой коррекцией
+            movePlayer(
+                Math.sign(clickX - playerX) * step,
+                Math.sign(clickY - playerY) * step
+            );
+        });
