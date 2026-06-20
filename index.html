@@ -2,202 +2,200 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Считаем котов!</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Детский лабиринт</title>
     <style>
         body {
-            font-family: 'Comic Sans MS', cursive, sans-serif;
-            background-color: #faf0e6;
-            margin: 0;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between; /* Разносим элементы */
-            align-items: center;
-            overflow: hidden;
-            position: relative;
-        }
-
-        h1, #question {
-            color: #8b4513;
+            font-family: Arial, sans-serif;
             text-align: center;
-            z-index: 2;
+            background-color: #f0f8ff;
+            margin: 0;
+            padding: 20px;
         }
-
-        /* --- ЗОНА ДЛЯ КОТОВ ---
-           Занимает всё пространство над цифрами */
-        .game-area {
+        #game-container {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            margin: 20px auto;
+            border: 3px solid #4682b4;
+            background-color: #fff;
+            overflow: hidden;
+        }
+        .wall {
             position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 35%; /* Котам доступна верхняя часть экрана */
-            pointer-events: none; /* Клик проходит сквозь пустые места */
+            background-color: #4682b4;
         }
-
-        .cat-picture {
+        #player {
             position: absolute;
-            width: 170px; /* Крупные коты */
-            border-radius: 20px;
-            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
-            opacity: 0.95;
-            user-select: none;
-            cursor: pointer;
-            transition: transform 0.3s ease;
+            width: 20px;
+            height: 20px;
+            background-color: #ff69b4;
+            border-radius: 50%;
+            z-index: 10;
         }
-        .cat-picture:hover {
-            transform: scale(1.08) rotate(-2deg);
-            z-index: 20;
+        #exit {
+            position: absolute;
+            width: 25px;
+            height: 25px;
+            background-color: #32cd32;
+            border-radius: 5px;
         }
-
-        /* --- БЛОК С ЦИФРАМИ ---
-           Располагаем внизу экрана */
-        #numbers {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr); /* Сетка 3x3 */
-            gap: 20px;
-            
-            bottom: 5%;
-            left: 50%;
-            transform: translateX(-50%);
-            
-            position: fixed;
-            pointer-events: auto;
-            z-index: 1; /* Ниже котов */
-            background-color: rgba(255,255,255,0.8);
-            padding: 15px;
-            border-radius: 20px;
+        #message {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin-top: 10px;
         }
-
         button {
-            font-size: 2.5em; /* Очень крупные цифры */
-            padding: 15px 25px;
-            border-radius: 18px;
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #4682b4;
+            color: white;
             border: none;
-            background-color: #fff8dc;
-            color: #a0522d;
+            border-radius: 5px;
             cursor: pointer;
-            box-shadow: 0 6px #d2691e;
-            transition: all 0.3s ease;
-            min-width: 80px;
-        }
-
-        button.correct {
-             background-color: #98fb98;
-             color: #2e7d32;
-             box-shadow: 0 6px #4CAF50;
-        }
-
-        button.wrong {
-             background-color: #ff6347;
-             color: white;
-             box-shadow: 0 6px #FF4500;
         }
     </style>
 </head>
 <body>
+    <h1>Детский лабиринт</h1>
+    <p>Проведи шарик к зелёному выходу!</p>
+    
+    <div id="game-container">
+        <!-- Стены лабиринта -->
+        <div class="wall" style="top: 0; left: 0; width: 300px; height: 10px;"></div>
+        <div class="wall" style="top: 0; left: 0; width: 10px; height: 300px;"></div>
+        <div class="wall" style="top: 0; left: 290px; width: 10px; height: 300px;"></div>
+        <div class="wall" style="top: 290px; left: 0; width: 300px; height: 10px;"></div>
+        <div class="wall" style="top: 50px; left: 50px; width: 200px; height: 10px;"></div>
+        <div class="wall" style="top: 150px; left: 100px; width: 10px; height: 100px;"></div>
+        <div class="wall" style="top: 240px; left: 50px; width: 200px; height: 10px;"></div>
 
-    <h1>Считаем котов!</h1>
-
-    <!-- Контейнер для зоны с котами -->
-    <div class="game-area"></div>
-
-    <div id="question">Сколько котов на крыше?</div>
-
-    <!-- Блок для цифр будет создан скриптом здесь -->
-    <div id="numbers"></div>
+        <!-- Игрок -->
+        <div id="player"></div>
+        
+        <!-- Выход -->
+        <div id="exit"></div>
+    </div>
+    
+    <div id="message">Двигай шарик пальцем!</div>
+    <button onclick="resetGame()">Начать заново</button>
 
     <script>
-        const gameArea = document.querySelector('.game-area');
-        const questionEl = document.getElementById('question');
-        const numbersEl = document.getElementById('numbers');
+        const player = document.getElementById('player');
+        const exit = document.getElementById('exit');
+        const message = document.getElementById('message');
+        const container = document.getElementById('game-container');
+        
+        // Начальные позиции
+        let playerX = 20;
+        let playerY = 20;
+        const exitX = 265;
+        const exitY = 265;
+        const step = 5;
 
-        let correctAnswer;
-        const catSize = 170;
-        const MAX_ATTEMPTS = 100;
+        // Инициализация игры
+        function initGame() {
+            player.style.left = playerX + 'px';
+            player.style.top = playerY + 'px';
+            exit.style.left = exitX + 'px';
+            exit.style.top = exitY + 'px';
+        }
 
-        function startGame() {
-            // Очистка предыдущего раунда
-            gameArea.innerHTML = '';
-            numbersEl.innerHTML = '';
-            questionEl.textContent = "Сколько котов на крыше?";
-            questionEl.style.color = "#333";
-
-            // Генерация нового ответа
-            correctAnswer = Math.floor(Math.random() * (9 - 1 + 1)) + 1;
-
-            // Массив для хранения позиций уже размещенных котов
-            const placedCats = [];
-
-            // Создаем котов
-            for (let i = 0; i < correctAnswer; i++) {
-                let attempts = 0;
-                let validPositionFound = false;
-                let newCatPos;
-
-                while (!validPositionFound && attempts < MAX_ATTEMPTS) {
-                    attempts++;
-
-                    // Генерируем случайную позицию внутри игровой зоны
-                    const xPos = Math.random() * (window.innerWidth - catSize);
-                    const yPos = Math.random() * (gameArea.clientHeight - catSize);
-
-                    newCatPos = { x: xPos, y: yPos };
-
-                    // Проверяем столкновение с другими котами
-                    if (placedCats.length === 0) {
-                        validPositionFound = true;
-                    } else {
-                        let noCollision = true;
-                        for (const pos of placedCats) {
-                            const overlapX = newCatPos.x < pos.x + catSize && newCatPos.x + catSize > pos.x;
-                            const overlapY = newCatPos.y < pos.y + catSize && newCatPos.y + catSize > pos.y;
-                            if (overlapX && overlapY) {
-                                noCollision = false;
-                                break;
-                            }
-                        }
-                        validPositionFound = noCollision;
-                    }
-                }
-
-                // Если позиция найдена, добавляем кота
-                if (validPositionFound) {
-                    placedCats.push(newCatPos);
-
-                    const img = document.createElement('img');
-                    img.src = `https://placekitten.com/${catSize}/${catSize}`; // Один источник для простоты
-                    img.classList.add('cat-picture');
-                    img.style.left = `${newCatPos.x}px`;
-                    img.style.top = `${newCatPos.y}px`;
-                    gameArea.appendChild(img);
+        // Проверка столкновения со стенами
+        function checkCollision(x, y) {
+            const walls = document.querySelectorAll('.wall');
+            for (let wall of walls) {
+                const wallRect = wall.getBoundingClientRect();
+                const playerRect = {
+                    left: x,
+                    top: y,
+                    right: x + 20,
+                    bottom: y + 20
+                };
+                
+                if (
+                    playerRect.right > wallRect.left &&
+                    playerRect.left < wallRect.right &&
+                    playerRect.bottom > wallRect.top &&
+                    playerRect.top < wallRect.bottom
+                ) {
+                    return true;
                 }
             }
+            return false;
+        }
 
-            // Создаем кнопки с цифрами ПОСЛЕ того, как создали котов
-            for (let num = 1; num <= 9; num++) {
-                const btn = document.createElement('button');
-                btn.textContent = num;
-                btn.value = num;
-
-                btn.addEventListener('click', function () {
-                    if (parseInt(this.value) === correctAnswer) {
-                        this.classList.add('correct');
-                        questionEl.textContent = "🎉 Верно!";
-                        questionEl.style.color = "#2e7d32";
-                    } else {
-                        this.classList.add('wrong');
-                        questionEl.textContent = `😿 Неправильно! Было ${correctAnswer}.`;
-                        questionEl.style.color = "#c62828";
-                    }
-                    document.querySelectorAll('#numbers button').forEach(b => b.disabled = true);
-                    setTimeout(startGame, 2000);
-                });
-                numbersEl.appendChild(btn);
+        // Проверка победы
+        function checkWin() {
+            const playerRect = player.getBoundingClientRect();
+            const exitRect = exit.getBoundingClientRect();
+            
+            if (
+                playerRect.right > exitRect.left &&
+                playerRect.left < exitRect.right &&
+                playerRect.bottom > exitRect.top &&
+                playerRect.top < exitRect.bottom
+            ) {
+                message.textContent = 'Поздравляем! Вы прошли лабиринт!';
+                message.style.color = '#32cd32';
             }
         }
 
-        // Старт игры после полной загрузки страницы
-        window.onload = startGame;
+        // Движение игрока
+        function movePlayer(dx, dy) {
+            const newX = playerX + dx;
+            const newY = playerY + dy;
+            
+            // Проверка границ контейнера
+            if (newX < 0 || newX > 280 || newY < 0 || newY > 280) return;
+            
+            // Проверка столкновения
+            if (!checkCollision(newX, newY)) {
+                playerX = newX;
+                playerY = newY;
+                player.style.left = playerX + 'px';
+                player.style.top = playerY + 'px';
+                checkWin();
+            }
+        }
+
+        // Управление с помощью касаний (для планшетов)
+        let startX, startY;
+        container.addEventListener('touchstart', function(e) {
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+        });
+
+        container.addEventListener('touchend', function(e) {
+            const endX = e.changedTouches[0].clientX;
+            const endY = e.changedTouches[0].clientY;
+            
+            const diffX = endX - startX;
+            const diffY = endY - startY;
+            
+            if (Math.abs(diffX) > Math.abs(diffY)) {
+                // Горизонтальное движение
+                if (diffX > 0) movePlayer(step, 0); // Вправо
+                else movePlayer(-step, 0); // Влево
+            } else {
+                // Вертикальное движение
+                if (diffY > 0) movePlayer(0, step); // Вниз
+                else movePlayer(0, -step); // Вверх
+            }
+        });
+
+        // Сброс игры
+        function resetGame() {
+            playerX = 20;
+            playerY = 20;
+            initGame();
+            message.textContent = 'Двигай шарик пальцем!';
+            message.style.color = '#333';
+        }
+
+        // Запуск игры
+        initGame();
     </script>
 </body>
 </html>
