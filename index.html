@@ -1,178 +1,188 @@
-
-
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Простой Лабиринт</title>
+    <title>Игра Лабиринт</title>
     <style>
-        /* Убираем поля и полосы прокрутки */
-        body, html {
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            height: 100%;
-            background-color: #f0f0f0;
+        body {
+            font-family: Arial, sans-serif;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
             align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
         }
-        /* Стиль для холста, чтобы он занимал весь экран */
+        
+        h1 {
+            margin-bottom: 20px;
+        }
+        
+        #game-container {
+            position: relative;
+            border: 3px solid #333;
+            background-color: #fff;
+        }
+        
         canvas {
-            background-color: #ffffff;
-            touch-action: none; /* Отключаем стандартное поведение браузера при касаниях (прокрутка, зум) */
+            display: block;
+        }
+        
+        #message {
+            margin-top: 20px;
+            font-size: 18px;
+            font-weight: bold;
+            color: #d63031;
+            display: none;
         }
     </style>
 </head>
 <body>
+    <h1>Лабиринт</h1>
+    <div id="game-container">
+        <canvas id="maze" width="400" height="400"></canvas>
+        <div id="message">Вы прошли лабиринт!</div>
+    </div>
 
-<canvas id="gameCanvas"></canvas>
-
-<script>
-    // --- Инициализация ---
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
-
-    // Подгоняем размер холста под размер окна (для планшетов)
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-
-    // --- Настройки игры ---
-    const gridSize = 40; // Размер одной клетки лабиринта
-    const playerSize = gridSize * 0.6; // Размер игрока (чуть меньше клетки)
-
-    // Позиция игрока (начало в левом верхнем углу)
-    let playerX = gridSize / 2;
-    let playerY = gridSize / 2;
-
-    // Скорость движения (в клетках за кадр)
-    const speed = 5;
-
-    // Координаты финиша (внизу справа)
-    const goalX = canvas.width - gridSize * 1.5;
-    const goalY = canvas.height - gridSize * 1.5;
-
-    // --- Определение стен лабиринта ---
-    // Функция проверяет, является ли точка (x, y) частью стены.
-    // Координаты передаются в пикселях.
-    function isWall(x, y) {
-        // Внешние границы
-        if (x < gridSize || x > canvas.width - gridSize ||
-            y < gridSize || y > canvas.height - gridSize) {
-            return true;
-        }
-
-        // Внутренние стенки (простой лабиринт)
-        // Горизонтальная стенка посередине
-        if (y > canvas.height / 2 - gridSize / 2 && y < canvas.height / 2 + gridSize / 2) {
-            if (x > canvas.width / 3 && x < canvas.width * 2 / 3) {
-                return true;
+    <script>
+        const canvas = document.getElementById('maze');
+        const ctx = canvas.getContext('2d');
+        const message = document.getElementById('message');
+        
+        // Размеры ячеек лабиринта
+        const cellSize = 40;
+        const cols = canvas.width / cellSize;
+        const rows = canvas.height / cellSize;
+        
+        // Игрок
+        let player = { x: 1, y: 1 };
+        
+        // Финиш
+        let finish = { x: cols - 2, y: rows - 2 };
+        
+        // Лабиринт (0 — проход, 1 — стена)
+        let maze = [];
+        
+        // Генерация лабиринта (простой алгоритм)
+        function generateMaze() {
+            maze = Array(rows).fill().map(() => Array(cols).fill(1));
+            
+            function carve(x, y) {
+                maze[y][x] = 0;
+                const directions = [[0, -2], [2, 0], [0, 2], [-2, 0]];
+                shuffle(directions);
+                
+                for (const [dx, dy] of directions) {
+                    const nx = x + dx;
+                    const ny = y + dy;
+                    
+                    if (nx > 0 && nx < cols - 1 && ny > 0 && ny < rows - 1 && maze[ny][nx] === 1) {
+                        maze[y + dy / 2][x + dx / 2] = 0;
+                        carve(nx, ny);
+                    }
+                }
             }
+            
+            carve(1, 1);
+            maze[1][0] = 0; // Вход
+            maze[rows - 2][cols - 1] = 0; // Выход
         }
-
-        // Вертикальная стенка справа
-        if (x > canvas.width - gridSize * 2 && x < canvas.width - gridSize) {
-            if (y > canvas.height / 3 && y < canvas.height * 2 / 3) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    // --- Отрисовка ---
-    function draw() {
-        // Очищаем холст
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // Рисуем финиш (зеленая зона)
-        ctx.fillStyle = '#4CAF50';
-        ctx.fillRect(goalX, goalY, playerSize, playerSize);
-
-        // Рисуем игрока (красный квадрат)
-        ctx.fillStyle = '#F44336';
-        ctx.fillRect(playerX - playerSize / 2, playerY - playerSize / 2, playerSize, playerSize);
-
-        // Запрашиваем следующий кадр анимации
-        requestAnimationFrame(draw);
-    }
-
-    // --- Логика движения ---
-    let targetX = playerX;
-    let targetY = playerY;
-
-    function movePlayer() {
-        // Плавное движение к точке касания
-
-        // Двигаем по X
-        if (playerX < targetX) {
-            let newX = playerX + speed;
-            if (!isWall(newX + playerSize / 2, playerY)) {
-                playerX = newX;
-            }
-        } else if (playerX > targetX) {
-            let newX = playerX - speed;
-            if (!isWall(newX - playerSize / 2, playerY)) {
-                playerX = newX;
+        
+        // Перемешивание массива
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
             }
         }
-
-        // Двигаем по Y
-        if (playerY < targetY) {
-            let newY = playerY + speed;
-            if (!isWall(playerX, newY + playerSize / 2)) {
-                playerY = newY;
+        
+        // Отрисовка лабиринта
+        function drawMaze() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            for (let y = 0; y < rows; y++) {
+                for (let x = 0; x < cols; x++) {
+                    if (maze[y][x] === 1) {
+                        ctx.fillStyle = '#333';
+                        ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+                    } else {
+                        ctx.strokeStyle = '#ddd';
+                        ctx.strokeRect(x * cellSize, y * cellSize, cellSize, cellSize);
+                    }
+                }
             }
-        } else if (playerY > targetY) {
-            let newY = playerY - speed;
-            if (!isWall(playerX, newY - playerSize / 2)) {
-                playerY = newY;
+            
+            // Отрисовка игрока
+            ctx.fillStyle = '#007bff';
+            ctx.beginPath();
+            ctx.arc(
+                player.x * cellSize + cellSize / 2,
+                player.y * cellSize + cellSize / 2,
+                cellSize / 3,
+                0,
+                2 * Math.PI
+            );
+            ctx.fill();
+            
+            // Отрисовка финиша
+            ctx.fillStyle = '#28a745';
+            ctx.fillRect(
+                finish.x * cellSize + 5,
+                finish.y * cellSize + 5,
+                cellSize - 10,
+                cellSize - 10
+            );
+        }
+        
+        // Проверка победы
+        function checkWin() {
+            if (player.x === finish.x && player.y === finish.y) {
+                message.style.display = 'block';
+                setTimeout(() => {
+                    message.style.display = 'none';
+                    generateMaze();
+                    player = { x: 1, y: 1 };
+                    drawMaze();
+                }, 2000);
             }
         }
-
-        // Проверка победы: игрок достиг финиша?
-        if (
-            playerX + playerSize / 2 > goalX &&
-            playerX - playerSize / 2 < goalX + playerSize &&
-            playerY + playerSize / 2 > goalY &&
-            playerY - playerSize / 2 < goalY + playerSize
-        ) {
-             alert("Поздравляем! Вы прошли лабиринт!");
-             // Сброс позиции игрока после победы
-             playerX = gridSize / 2;
-             playerY = gridSize / 2;
-             targetX = playerX;
-             targetY = playerY;
-         }
-    }
-
-    // --- Обработка касаний ---
-    canvas.addEventListener('touchstart', function(e) {
-        e.preventDefault(); // Предотвращаем прокрутку страницы пальцем
-        const touch = e.touches[0];
-        setTarget(touch);
-    });
-
-    canvas.addEventListener('touchmove', function(e) {
-        e.preventDefault();
-        const touch = e.touches[0];
-        setTarget(touch);
-    });
-
-    function setTarget(touch) {
-         // Координаты касания относительно холста
-         const rect = canvas.getBoundingClientRect();
-         targetX = touch.clientX - rect.left;
-         targetY = touch.clientY - rect.top;
-     }
-
-
-    // --- Запуск игры ---
-    setInterval(movePlayer, 16); // ~60 кадров в секунду для движения
-    draw(); // Запуск цикла отрисовки
-
-</script>
+        
+        // Обработка клавиш
+        document.addEventListener('keydown', (e) => {
+            let newX = player.x;
+            let newY = player.y;
+            
+            switch (e.key) {
+                case 'ArrowUp':
+                    newY--;
+                    break;
+                case 'ArrowDown':
+                    newY++;
+                    break;
+                case 'ArrowLeft':
+                    newX--;
+                    break;
+                case 'ArrowRight':
+                    newX++;
+                    break;
+                default:
+                    return;
+            }
+            
+            // Проверка столкновения со стенами
+            if (maze[newY][newX] === 0) {
+                player.x = newX;
+                player.y = newY;
+                drawMaze();
+                checkWin();
+            }
+        });
+        
+        // Инициализация игры
+        generateMaze();
+        drawMaze();
+    </script>
 </body>
 </html>
-
