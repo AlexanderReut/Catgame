@@ -2,68 +2,190 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Цветная сетка</title>
+    <title>Рисование от животных</title>
     <style>
-        body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background-color: #f0f0f0;
+        body, html {
             margin: 0;
+            padding: 0;
+            overflow: hidden;
+            height: 100%;
+            background-color: #f0f8ff; /* Светло-голубой фон */
+            cursor: crosshair; /* Меняем курсор для удобства рисования */
         }
-        .grid {
-            display: grid;
-            gap: 2px; /* Расстояние между клетками */
-            border: 2px solid #333;
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
         }
-        .cell {
-            width: 20px;
-            height: 20px;
-            background-color: white;
-            transition: background-color 0.1s ease-in-out; /* Плавная смена цвета */
-        }
-        .cell:hover {
+        .animal {
+            position: absolute;
+            width: 80px;
             cursor: pointer;
+            user-select: none; /* Убираем выделение текста */
+        }
+        .cat {
+            background-color: #f4a261;
+        }
+        .dog {
+            background-color: #e76f51;
         }
     </style>
 </head>
 <body>
 
-<div class="grid" id="pixelCanvas"></div>
+<!-- Холст для рисования линий -->
+<canvas id="canvas"></canvas>
+
+<!-- Контейнер для животных (они будут добавляться сюда скриптом) -->
+<div id="animals-container"></div>
 
 <script>
-    const container = document.getElementById('pixelCanvas');
-    const GRID_SIZE = 16; // Размер сетки (16x16)
+    // --- 1. Настройка холста ---
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
 
-    function createGrid(size) {
-        // Устанавливаем количество колонок и строк равным 'size'
-        container.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
-        container.style.gridTemplateRows = `repeat(${size}, 1fr)`;
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas(); // Вызываем один раз при загрузке
 
-        // Очищаем контейнер перед генерацией новой сетки
-        container.innerHTML = '';
+    // --- 2. Создание животных ---
+    const animalsContainer = document.getElementById('animals-container');
+    const animalTypes = ['cat', 'dog'];
 
-        for (let i = 0; i < size * size; i++) {
-            const cell = document.createElement('div');
-            cell.classList.add('cell');
-            cell.addEventListener('click', changeColor);
-            container.appendChild(cell);
+    function createAnimal() {
+        const animal = document.createElement('div');
+        const type = animalTypes[Math.floor(Math.random() * animalTypes.length)];
+        animal.classList.add('animal', type);
+
+        // Задаем случайную позицию, чтобы животное не выходило за пределы экрана
+        const x = Math.random() * (window.innerWidth - 80);
+        const y = Math.random() * (window.innerHeight - 80);
+
+        animal.style.left = `${x}px`;
+        animal.style.top = `${y}px`;
+
+        animalsContainer.appendChild(animal);
+
+        // Удаляем животное через некоторое время, чтобы не засорять память
+        setTimeout(() => animal.remove(), 30000); // 30 секунд
+    }
+
+    // Создаем нового животного каждые 2 секунды
+    setInterval(createAnimal, 2000);
+
+
+    // --- 3. Логика рисования линий ---
+    let isDrawing = false;
+    let currentLine = null;
+
+    // Класс для управления линией
+    class Line {
+        constructor(startX, startY) {
+            this.points = [{ x: startX, y: startY }];
+            this.growSpeed = 2; // Скорость "доращивания" линии (пикселей за кадр)
+            this.currentLength = 0;
+            this.totalLength = 0;
+        }
+
+        addPoint(x, y) {
+            this.points.push({ x, y });
+            // Пересчитываем общую длину линии при добавлении новой точки
+            this.totalLength += Math.hypot(x - this.points[this.points.length - 2].x, y - this.points[this.points.length - 2].y);
+        }
+
+        update() {
+            if (this.currentLength < this.totalLength) {
+                this.currentLength += this.growSpeed;
+                if (this.currentLength > this.totalLength) {
+                    this.currentLength = this.totalLength;
+                }
+                this.draw();
+                return true; // Линия еще не дорисована
+            }
+            return false; // Линия дорисована
+        }
+
+        draw() {
+            ctx.beginPath();
+            let remainingLength = this.currentLength;
+
+            for (let i = 1; i < this.points.length; i++) {
+                const p0 = this.points[i - 1];
+                const p1 = this.points[i];
+                const segmentLength = Math.hypot(p1.x - p0.x, p1.y - p0.y);
+
+                if (remainingLength >= segmentLength) {
+                    // Рисуем весь сегмент
+                    ctx.lineTo(p1.x, p1.y);
+                    remainingLength -= segmentLength;
+                } else if (remainingLength > 0) {
+                    // Рисуем только часть сегмента
+                    const ratio = remainingLength / segmentLength;
+                    const x = p0.x + (p1.x - p0.x) * ratio;
+                    const y = p0.y + (p1.y - p0.y) * ratio;
+                    ctx.lineTo(x, y);
+                    remainingLength = 0;
+                    break; // Остальную часть линии рисовать не нужно
+                } else {
+                    break; // Длины больше нет, выходим из цикла
+                }
+            }
+
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.lineWidth = 3;
+            ctx.stroke();
         }
     }
 
-    function getRandomColor() {
-        // Генерируем случайный цвет в формате HEX
-        return '#' + Math.floor(Math.random()*16777215).toString(16);
+
+    // Обработчики событий мыши на холсте
+    canvas.addEventListener('mousedown', (e) => {
+        isDrawing = true;
+        currentLine = new Line(e.clientX, e.clientY);
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+        if (isDrawing && currentLine) {
+            currentLine.addPoint(e.clientX, e.clientY);
+        }
+    });
+
+    canvas.addEventListener('mouseup', () => {
+        isDrawing = false;
+        if (currentLine) {
+            // Добавляем завершенную линию в массив для анимации
+            activeLines.push(currentLine);
+            currentLine = null;
+        }
+    });
+
+
+    // --- 4. Анимация ---
+    const activeLines = [];
+
+    function animate() {
+        // Очищаем холст перед каждым кадром
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Обновляем и рисуем все активные линии
+        for (let i = activeLines.length - 1; i >= 0; i--) {
+            const line = activeLines[i];
+            if (!line.update()) {
+                // Если линия полностью дорисована, удаляем её из массива
+                activeLines.splice(i, 1);
+            }
+        }
+
+        requestAnimationFrame(animate);
     }
 
-    function changeColor(event) {
-        event.target.style.backgroundColor = getRandomColor();
-    }
+    animate(); // Запускаем анимацию
 
-    // Инициализация сетки при загрузке страницы
-    createGrid(GRID_SIZE);
 </script>
-
 </body>
 </html>
