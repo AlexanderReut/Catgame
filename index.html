@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Лабиринт: Исправленная версия</title>
+    <title>Лабиринт</title>
     <style>
         body, html {
             height: 100%;
@@ -23,7 +23,7 @@
             height: 400px;
             background-color: #fff;
             box-shadow: 0 8px 30px rgba(0,0,0,0.2);
-            touch-action: none; /* Отключает стандартное поведение браузера */
+            touch-action: none; /* Критически важно для отключения прокрутки браузера */
         }
 
         .wall {
@@ -35,7 +35,7 @@
             position: absolute;
             width: 25px;
             height: 25px;
-            background-color: #ff5722;
+            background-color: #ff5722; /* Цвет игрока */
             border-radius: 50%;
         }
 
@@ -43,21 +43,8 @@
             position: absolute;
             width: 25px;
             height: 25px;
-            background-color: #4caf50;
+            background-color: #4caf50; /* Цвет финиша */
             border-radius: 50%;
-        }
-
-        /* Зона управления (виртуальный джойстик) */
-        #control-pad {
-            position: absolute;
-            bottom: 20px;
-            left: 0;
-            right: 0;
-            height: 80px; /* Высота зоны управления */
-            background-color: rgba(255, 255, 255, 0.7);
-            display: flex;
-            justify-content: center;
-            align-items: center;
         }
 
         #message-overlay {
@@ -83,16 +70,13 @@
 <body>
 
     <div id="game-container">
-        <!-- Элементы лабиринта генерируются здесь -->
+        <!-- Стены будут созданы здесь с помощью JavaScript -->
 
         <div id="player"></div>
         <div id="finish"></div>
 
-        <!-- Зона для управления -->
-        <div id="control-pad"></div>
-
         <div id="message-overlay">
-            <p id="msg-text"></p>
+            <p id="msg-text">Стена! Попробуй снова.</p>
             <button onclick="resetGame()">Начать заново</button>
         </div>
     </div>
@@ -101,95 +85,184 @@
         const gameContainer = document.getElementById('game-container');
         const player = document.getElementById('player');
         const finish = document.getElementById('finish');
-        const controlPad = document.getElementById('control-pad');
         const messageOverlay = document.getElementById('message-overlay');
         const msgText = document.getElementById('msg-text');
 
-        const GRID_SIZE = 10; // Размер сетки лабиринта
+        const GRID_SIZE = 12; // Размер сетки (12x12 для более интересного лабиринта)
         const CELL_SIZE = gameContainer.clientWidth / GRID_SIZE; // Размер одной ячейки
-
-        let walls = [];
+        let walls = []; // Массив для хранения элементов-стен
         let isGameActive = true;
-
-        // Переменные для управления
-        let isTouching = false; // Флаг касания
-        let baseX = 0; // Начальная точка касания (X)
-        let baseY = 0; // Начальная точка касания (Y)
 
          // --- Инициализация игры ---
          function initGame() {
-             // Очистка старых стен
+             // Удаляем старые стены
              walls.forEach(wall => wall.remove());
              walls = [];
 
-             // Генерация и отрисовка нового лабиринта
+             // Генерируем и отрисовываем новый лабиринт
              const maze = generateMaze();
              createWallsFromMaze(maze);
 
-             // Сброс игрока и финиша
+             // Устанавливаем начальную позицию игрока и финиша
              player.style.left = CELL_SIZE + 'px';
              player.style.top = CELL_SIZE + 'px';
-             finish.style.left = (CELL_SIZE * (GRID_SIZE - 1)) + 'px';
-             finish.style.top = (CELL_SIZE * (GRID_SIZE - 1)) + 'px';
+             finish.style.left = (CELL_SIZE * (GRID_SIZE - 2)) + 'px';
+             finish.style.top = (CELL_SIZE * (GRID_SIZE - 2)) + 'px';
 
-             // Сброс состояния игры
-             isGameActive = true;
+             // Сбрасываем сообщение и флаг игры
              messageOverlay.style.display = 'none';
+             isGameActive = true;
          }
 
-         // --- Логика управления ---
-         controlPad.addEventListener('touchstart', function(event) {
-             if (!isGameActive) return resetGame();
+         // --- Генерация лабиринта (алгоритм Прима) ---
+         function generateMaze() {
+             // Создаем сетку, заполненную стенами (true)
+             let grid = Array(GRID_SIZE).fill().map(() => Array(GRID_SIZE).fill(true));
              
-             event.preventDefault();
-             isTouching = true;
+             // Список ячеек-"фронтира" (стены рядом с путем)
+             let frontier = [];
              
-             // Запоминаем точку касания как центр джойстика
-             const rect = controlPad.getBoundingClientRect();
-             baseX = event.touches[0].clientX - rect.left - (player.offsetWidth / 2);
-             baseY = event.touches[0].clientY - rect.top - (player.offsetHeight / 2);
-         });
+             // Выбираем случайную стартовую точку и делаем её путем
+             let startX = Math.floor(Math.random() * (GRID_SIZE/2)) * 2 + 1;
+             let startY = Math.floor(Math.random() * (GRID_SIZE/2)) * 2 + 1;
+             grid[startY][startX] = false;
 
-         controlPad.addEventListener('touchmove', function(event) {
-             if (!isTouching || !isGameActive) return;
-             event.preventDefault();
+             // Добавляем соседние стены стартовой точки во "фронтир"
+             addFrontierCells(startX, startY);
 
-             // Вычисляем смещение пальца от центра
-             const rect = controlPad.getBoundingClientRect();
-             const touchX = event.touches[0].clientX - rect.left - (player.offsetWidth / 2);
-             const touchY = event.touches[0].clientY - rect.top - (player.offsetHeight / 2);
-             
-             const deltaX = touchX - baseX;
-             const deltaY = touchY - baseY;
+             // Пока есть ячейки во "фронтире"
+             while (frontier.length > 0) {
+                 // Выбираем случайную ячейку из "фронтира"
+                 let index = Math.floor(Math.random() * frontier.length);
+                 let [x, y] = frontier.splice(index, 1)[0];
 
-             // Определяем направление движения по наибольшему смещению
-             let speedX = 0, speedY = 0;
-             if (Math.abs(deltaX) > Math.abs(deltaY)) {
-                 // Горизонтальное движение
-                 speedX = Math.sign(deltaX) * 5; // Скорость движения по X
-                 speedY = 0; // Останавливаем движение по Y при смене направления
-             } else {
-                 // Вертикальное движение
-                 speedX = 0; // Останавливаем движение по X при смене направления
-                 speedY = Math.sign(deltaY) * 5; // Скорость движения по Y
+                 // Проверяем соседей-кандидатов (через одну ячейку)
+                 let neighbors = [];
+                 if (y >= 2 && !grid[y-2][x]) neighbors.push([x, y-2, x, y-1]); // Сверху
+                 if (y < GRID_SIZE-2 && !grid[y+2][x]) neighbors.push([x, y+2, x, y+1]); // Снизу
+                 if (x >= 2 && !grid[y][x-2]) neighbors.push([x-2, y, x-1, y]); // Слева
+                 if (x < GRID_SIZE-2 && !grid[y][x+2]) neighbors.push([x+2, y, x+1, y]); // Справа
+
+                 if (neighbors.length) {
+                     // Выбираем случайного соседа и "пробиваем" к нему путь
+                     let [nx, ny, wx, wy] = neighbors[Math.floor(Math.random() * neighbors.length)];
+                     grid[ny][nx] = false; // Делаем соседа путем
+                     grid[wy][wx] = false; // Сносим стену между ними
+
+                     // Добавляем новых соседей в "фронтир"
+                     addFrontierCells(nx, ny);
+                 }
              }
+             return grid;
+         }
 
-             // Обновляем позицию игрока с учетом скорости
-             const newLeft = parseFloat(player.style.left || CELL_SIZE) + speedX;
-             const newTop = parseFloat(player.style.top || CELL_SIZE) + speedY;
-             
-             player.style.left = newLeft + 'px';
-             player.style.top = newTop + 'px';
-             
-             checkCollision();
-         });
+         function addFrontierCells(x, y) {
+             if (y >= 2) wallsToFrontier(x, y-2);
+             if (y < GRID_SIZE-2) wallsToFrontier(x, y+2);
+             if (x >= 2) wallsToFrontier(x-2, y);
+             if (x < GRID_SIZE-2) wallsToFrontier(x+2, y);
+         }
 
-         controlPad.addEventListener('touchend', function() {
-             isTouching = false; // Прекращаем управление, когда палец поднят
-         });
+         function wallsToFrontier(x, y) {
+             if (grid[y][x]) { // Если это стена
+                 frontier.push([x, y]);
+                 grid[y][x] = false; // Помечаем как посещенную, чтобы не добавлять снова
+             }
+         }
+
+         // --- Создание стен на странице ---
+         function createWallsFromMaze(maze) {
+             for (let row = 0; row < GRID_SIZE; row++) {
+                 for (let col = 0; col < GRID_SIZE; col++) {
+                     if (maze[row][col]) { // Если ячейка - это стена
+                         const wall = document.createElement('div');
+                         wall.className = 'wall';
+                         wall.style.left = (col * CELL_SIZE) + 'px';
+                         wall.style.top = (row * CELL_SIZE) + 'px';
+                         wall.style.width = CELL_SIZE + 'px';
+                         wall.style.height = CELL_SIZE + 'px';
+                         gameContainer.appendChild(wall);
+                         walls.push(wall);
+                     }
+                 }
+             }
+         }
 
 
-         // --- Логика столкновений и генерации лабиринта (осталась без изменений) ---
-         // ... (код из предыдущей версии для generateMaze, createWallsFromMaze, checkCollision и т.д.)
-         // Для краткости он не повторяется здесь, но в полной версии он должен быть на месте.
-         // Он был полностью скопирован из предыдущего ответа.
+         // --- Логика управления и столкновений ---
+         gameContainer.addEventListener('touchmove', function(event) {
+              if (!isGameActive) return; // Если игра окончена, ничего не делаем
+
+              event.preventDefault(); // Отменяем прокрутку страницы
+
+              const touch = event.touches[0];
+              const rect = gameContainer.getBoundingClientRect();
+
+              // Вычисляем координаты касания относительно игрового поля
+              const x = touch.clientX - rect.left - (player.offsetWidth / 2);
+              const y = touch.clientY - rect.top - (player.offsetHeight / 2);
+
+              // Перемещаем игрока в координаты касания
+              player.style.left = x + 'px';
+              player.style.top = y + 'px';
+
+              // Проверяем столкновение на каждом шаге движения
+              checkCollision();
+          });
+
+          function checkCollision() {
+              const playerRect = player.getBoundingClientRect();
+              const finishRect = finish.getBoundingClientRect();
+              const containerRect = gameContainer.getBoundingClientRect();
+
+              // Проверка выхода за границы лабиринта
+              if (playerRect.left < containerRect.left ||
+                  playerRect.right > containerRect.right ||
+                  playerRect.top < containerRect.top ||
+                  playerRect.bottom > containerRect.bottom) {
+                  endGame(false);
+                  return;
+              }
+
+              // Проверка столкновения со стенами
+              for (let wall of walls) {
+                  const wallRect = wall.getBoundingClientRect();
+                  if (isIntersecting(playerRect, wallRect)) {
+                      endGame(false);
+                      return;
+                  }
+              }
+
+              // Проверка достижения финиша
+              if (isIntersecting(playerRect, finishRect)) {
+                  endGame(true);
+                  return;
+              }
+          }
+
+          function isIntersecting(a, b) {
+              return a.right > b.left && a.left < b.right && a.bottom > b.top && a.top < b.bottom;
+          }
+
+          function endGame(isWin) {
+              isGameActive = false; // Останавливаем игру
+
+              if (isWin) {
+                  msgText.textContent = "Победа!";
+                  messageOverlay.style.backgroundColor = "rgba(46, 125, 50, 0.7)";
+              } else {
+                  msgText.textContent = "Стена! Попробуй снова.";
+                  messageOverlay.style.backgroundColor = "rgba(173, 34, 34, 0.7)";
+              }
+              messageOverlay.style.display = 'flex';
+          }
+
+          function resetGame() {
+              initGame(); // Генерируем новый лабиринт и сбрасываем игру
+          }
+
+          // Запускаем игру при загрузке страницы
+          initGame();
+    </script>
+</body>
+</html>
