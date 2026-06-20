@@ -2,8 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Логическая игра: Передвинь ящики</title>
+    <title>Цветная сетка</title>
     <style>
         body {
             display: flex;
@@ -12,215 +11,59 @@
             height: 100vh;
             background-color: #f0f0f0;
             margin: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
-        h1 {
-            margin-bottom: 20px;
-        }
-        #game-container {
+        .grid {
             display: grid;
-            grid-template-columns: repeat(8, 50px);
-            grid-template-rows: repeat(8, 50px);
-            gap: 2px;
+            gap: 2px; /* Расстояние между клетками */
+            border: 2px solid #333;
         }
         .cell {
-            width: 50px;
-            height: 50px;
+            width: 20px;
+            height: 20px;
+            background-color: white;
+            transition: background-color 0.1s ease-in-out; /* Плавная смена цвета */
         }
-        .wall {
-            background-color: #333; /* Стена */
-        }
-        .floor {
-            background-color: #eee; /* Пол */
-        }
-        .target {
-            background-color: #ffd700; /* Целевая клетка (золотой) */
-        }
-        .player {
-            background-color: #4682b4; /* Игрок (стальной синий) */
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            font-weight: bold;
-        }
-        .box {
-            background-color: #8b4513; /* Ящик (коричневый) */
-        }
-        .box-on-target {
-            background-color: #ff8c00; /* Ящик на цели (темно-оранжевый) */
-        }
-
-        /* Стили для победы */
-        .win-overlay {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100vw; height: 100vh;
-            background-color: rgba(255, 255, 255, 0.9);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            z-index: 10;
-            display: none; /* Скрыто по умолчанию */
+        .cell:hover {
+            cursor: pointer;
         }
     </style>
 </head>
 <body>
 
-    <h1>Головоломка "Передвинь ящики"</h1>
-    <div id="game-container"></div>
+<div class="grid" id="pixelCanvas"></div>
 
-    <div class="win-overlay" id="win-overlay">
-        <h2>Уровень пройден! 🎉</h2>
-        <button onclick="location.reload()">Играть снова</button>
-    </div>
+<script>
+    const container = document.getElementById('pixelCanvas');
+    const GRID_SIZE = 16; // Размер сетки (16x16)
 
-    <script>
-        // --- НАСТРОЙКА УРОВНЯ ---
-        // 'w' - стена, 'p' - игрок, 'b' - ящик, 't' - цель, ' ' - пустая клетка
-        const level = [
-            "wwwwwwww",
-            "w      w",
-            "w  p   w",
-            "w  b   w",
-            "w      w",
-            "w      w",
-            "w      t",
-            "wwwwwwww"
-        ];
+    function createGrid(size) {
+        // Устанавливаем количество колонок и строк равным 'size'
+        container.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+        container.style.gridTemplateRows = `repeat(${size}, 1fr)`;
 
-        const gameContainer = document.getElementById('game-container');
-        const winOverlay = document.getElementById('win-overlay');
+        // Очищаем контейнер перед генерацией новой сетки
+        container.innerHTML = '';
 
-        let playerPos = { x: 3, y: 2 }; // Начальная позиция игрока
-        let boxPositions = [{ x: 3, y: 3 }]; // Начальные позиции ящиков
+        for (let i = 0; i < size * size; i++) {
+            const cell = document.createElement('div');
+            cell.classList.add('cell');
+            cell.addEventListener('click', changeColor);
+            container.appendChild(cell);
+        }
+    }
 
-        // Функция для отрисовки уровня
-        function renderLevel() {
-            gameContainer.innerHTML = ''; // Очищаем поле перед отрисовкой
-            
-            for (let y = 0; y < level.length; y++) {
-                for (let x = 0; x < level[y].length; x++) {
-                    const cell = document.createElement('div');
-                    cell.classList.add('cell');
+    function getRandomColor() {
+        // Генерируем случайный цвет в формате HEX
+        return '#' + Math.floor(Math.random()*16777215).toString(16);
+    }
 
-                    // Определяем базовый тип клетки по уровню
-                    let cellType = level[y][x];
-                    if (cellType === 'w') cell.classList.add('wall');
-                    if (cellType === 't') cell.classList.add('target');
-                    if (cellType === ' ') cell.classList.add('floor');
+    function changeColor(event) {
+        event.target.style.backgroundColor = getRandomColor();
+    }
 
-                    // Проверяем, есть ли на этой клетке ящик
-                    const boxHere = boxPositions.find(b => b.x === x && b.y === y);
-                    if (boxHere) {
-                        // Если клетка является целью и на ней ящик
-                        if (cellType === 't') {
-                            cell.classList.add('box-on-target');
-                        } else {
-                            cell.classList.add('box');
-                        }
-                    }
+    // Инициализация сетки при загрузке страницы
+    createGrid(GRID_SIZE);
+</script>
 
-                    // Проверяем, есть ли на этой клетке игрок
-                    if (playerPos.x === x && playerPos.y === y) {
-                        const playerDiv = document.createElement('div');
-                        playerDiv.classList.add('player');
-                        playerDiv.textContent = '🤖';
-                        cell.appendChild(playerDiv);
-                    }
-
-                    gameContainer.appendChild(cell);
-                }
-                // Добавляем перенос строки для сетки
-                gameContainer.appendChild(document.createElement('br'));
-            }
-
-             // Проверка победы после каждой отрисовки
-             checkWin();
-         }
-
-         // Функция проверки победы
-         function checkWin() {
-             // Считаем количество целей на уровне
-             let totalTargets = 0;
-             for (let row of level) {
-                 totalTargets += (row.match(/t/g) || []).length;
-             }
-
-             // Считаем ящики, стоящие на целях
-             let boxesOnTarget = boxPositions.filter(box => level[box.y][box.x] === 't').length;
-
-             if (boxesOnTarget === totalTargets) {
-                 winOverlay.style.display = 'flex';
-                 // Отключаем управление после победы
-                 window.removeEventListener('keydown', handleKeyPress);
-             }
-         }
-
-         // Функция обработки нажатий клавиш
-         function handleKeyPress(event) {
-             const { x: px, y: py } = playerPos;
-             let newPlayerPos = { ...playerPos };
-             let newBoxPositions = [...boxPositions];
-             let movedBox = false;
-
-             // Определяем направление движения
-             switch (event.key) {
-                 case 'ArrowUp':
-                     newPlayerPos.y = py - 1;
-                     break;
-                 case 'ArrowDown':
-                     newPlayerPos.y = py + 1;
-                     break;
-                 case 'ArrowLeft':
-                     newPlayerPos.x = px - 1;
-                     break;
-                 case 'ArrowRight':
-                     newPlayerPos.x = px + 1;
-                     break;
-                 default:
-                     return; // Если нажата не та клавиша, ничего не делаем
-             }
-
-             // Проверка на столкновение со стеной или выход за границы уровня
-             if (newPlayerPos.x < 0 || newPlayerPos.x >= level[0].length ||
-                 newPlayerPos.y < 0 || newPlayerPos.y >= level.length ||
-                 level[newPlayerPos.y][newPlayerPos.x] === 'w') {
-                 return; // Движение невозможно
-             }
-
-             // Проверка, пытается ли игрок толкнуть ящик
-             const boxIndex = boxPositions.findIndex(b => b.x === newPlayerPos.x && b.y === newPlayerPos.y);
-             if (boxIndex !== -1) {
-                 const newBoxPos = { ...newPlayerPos };
-                 // Определяем новое положение ящика в том же направлении
-                 if (event.key === 'ArrowUp') newBoxPos.y -= 1;
-                 if (event.key === 'ArrowDown') newBoxPos.y += 1;
-                 if (event.key === 'ArrowLeft') newBoxPos.x -= 1;
-                 if (event.key === 'ArrowRight') newBoxPos.x += 1;
-
-                 // Проверка, можно ли передвинуть ящик (не в стену и не в другой ящик)
-                 if (newBoxPos.x < 0 || newBoxPos.x >= level[0].length ||
-                     newBoxPos.y < 0 || newBoxPos.y >= level.length ||
-                     level[newBoxPos.y][newBoxPos.x] === 'w' ||
-                     boxPositions.some(b => b.x === newBoxPos.x && b.y === newBoxPos.y)) {
-                     return; // Толкнуть ящик нельзя
-                 }
-                 // Обновляем позицию ящика в массиве
-                 newBoxPositions[boxIndex] = newBoxPos;
-                 movedBox = true;
-             }
-
-             // Если все проверки пройдены, обновляем позиции игрока и ящиков
-             playerPos = newPlayerPos;
-             if (movedBox) boxPositions = newBoxPositions;
-             renderLevel();
-         }
-
-         // Инициализация игры при загрузке страницы
-         window.addEventListener('load', renderLevel);
-         window.addEventListener('keydown', handleKeyPress);
-    </script>
 </body>
 </html>
