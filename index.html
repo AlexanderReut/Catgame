@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Лабиринт для детей</title>
+    <title>Лабиринт для планшета</title>
     <style>
         * {
             margin: 0;
@@ -15,325 +15,234 @@
             font-family: Arial, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             display: flex;
-            flex-direction: column;
-            align-items: center;
             justify-content: center;
+            align-items: center;
             min-height: 100vh;
-            padding: 20px;
             overflow: hidden;
         }
         
-        h1 {
-            color: white;
-            font-size: 28px;
-            margin-bottom: 15px;
+        .game-container {
             text-align: center;
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            max-width: 95vw;
+            max-height: 95vh;
         }
         
-        #game-container {
-            background: white;
-            padding: 15px;
-            border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 24px;
+        }
+        
+        .info {
+            color: #666;
+            margin-bottom: 15px;
+            font-size: 14px;
         }
         
         #maze {
             display: grid;
             gap: 2px;
-            background: #2c3e50;
+            background: #333;
             padding: 5px;
             border-radius: 10px;
+            margin: 0 auto;
+            touch-action: none;
         }
         
         .cell {
-            width: 40px;
-            height: 40px;
-            background: #34495e;
-            border-radius: 5px;
+            width: 35px;
+            height: 35px;
+            background: #f0f0f0;
             display: flex;
-            align-items: center;
             justify-content: center;
-            font-size: 24px;
+            align-items: center;
+            font-size: 12px;
+            cursor: pointer;
         }
         
         .wall {
-            background: #2c3e50;
+            background: #333;
         }
         
         .path {
-            background: #ecf0f1;
+            background: #f0f0f0;
         }
         
-        .player {
-            background: #34495e;
+        .ball {
+            background: #e74c3c !important;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
         }
         
-        .player::after {
-            content: '😀';
+        .ball:active {
+            transform: scale(0.95);
         }
         
         .goal {
-            background: #34495e;
+            background: #2ecc71 !important;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
         }
         
-        .goal::after {
-            content: '⭐';
-        }
-        
-        #message {
-            color: white;
-            font-size: 22px;
+        .message {
             margin-top: 15px;
-            text-align: center;
-            min-height: 30px;
-        }
-        
-        #restart-btn {
+            padding: 12px;
             background: #2ecc71;
             color: white;
-            border: none;
-            padding: 12px 25px;
-            font-size: 18px;
-            border-radius: 10px;
-            margin-top: 15px;
-            cursor: pointer;
-            display: none;
-        }
-        
-        #direction-circle {
-            width: 180px;
-            height: 180px;
-            background: #667eea;
-            border-radius: 50%;
-            margin-top: 15px;
-            position: relative;
-            cursor: pointer;
-        }
-        
-        #direction-circle:active {
-            background: #5a6fd6;
-        }
-        
-        .direction {
-            position: absolute;
-            width: 50px;
-            height: 50px;
-            background: #ecf0f1;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 28px;
+            border-radius: 8px;
             font-weight: bold;
-            color: #667eea;
+            display: none;
+            font-size: 16px;
         }
         
-        .direction:active {
-            background: #d5dbdb;
+        .btn {
+            margin-top: 15px;
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
         }
         
-        .direction.up {
-            top: 10px;
-            left: 65px;
-        }
-        
-        .direction.down {
-            bottom: 10px;
-            left: 65px;
-        }
-        
-        .direction.left {
-            top: 65px;
-            left: 10px;
-        }
-        
-        .direction.right {
-            top: 65px;
-            right: 10px;
-        }
-        
-        .center-dot {
-            position: absolute;
-            width: 40px;
-            height: 40px;
-            background: #764ba2;
-            border-radius: 50%;
-            top: 70px;
-            left: 70px;
-        }
-        
-        @media (max-width: 500px) {
-            .cell {
-                width: 32px;
-                height: 32px;
-            }
-            h1 {
-                font-size: 24px;
-            }
-            #direction-circle {
-                width: 150px;
-                height: 150px;
-            }
-            .direction {
-                width: 45px;
-                height: 45px;
-                font-size: 24px;
-            }
-            .center-dot {
-                width: 35px;
-                height: 35px;
-                top: 57px;
-                left: 57px;
-            }
+        .btn:active {
+            transform: translateY(2px);
         }
     </style>
 </head>
 <body>
-    <h1>🎮 Лабиринт для детей</h1>
-    
-    <div id="game-container">
+    <div class="game-container">
+        <h1>🎮 Лабиринт</h1>
+        <p class="info">Нажми на шарик, чтобы переместиться в соседнюю клетку</p>
         <div id="maze"></div>
-        <div id="message"></div>
-        <button id="restart-btn" onclick="initGame()">Новый лабиринт</button>
-        
-        <div id="direction-circle">
-            <div class="direction up" onclick="movePlayer(0, -1)">⬆️</div>
-            <div class="direction down" onclick="movePlayer(0, 1)">⬇️</div>
-            <div class="direction left" onclick="movePlayer(-1, 0)">⬅️</div>
-            <div class="direction right" onclick="movePlayer(1, 0)">➡️</div>
-            <div class="center-dot"></div>
-        </div>
+        <div id="message" class="message">🎉 Ты прошел лабиринт!</div>
+        <button class="btn" onclick="initGame()">Новая игра</button>
     </div>
 
     <script>
-        const mazeSize = 7;
+        const mazeSize = 11;
         let maze = [];
-        let playerPos = { x: 1, y: 1 };
-        let goalPos = { x: 5, y: 5 };
+        let ballPos = { x: 1, y: 1 };
+        let goalPos = { x: 9, y: 9 };
         
+        // Генерация лабиринта с помощью алгоритма DFS
         function generateMaze() {
             maze = [];
-            for (let y = 0; y < mazeSize; y++) {
-                maze[y] = [];
-                for (let x = 0; x < mazeSize; x++) {
-                    maze[y][x] = 'wall';
+            for (let i = 0; i < mazeSize; i++) {
+                maze[i] = [];
+                for (let j = 0; j < mazeSize; j++) {
+                    maze[i][j] = 1; // 1 = стена, 0 = путь
                 }
             }
             
-            for (let y = 1; y < mazeSize - 1; y++) {
-                maze[y][1] = 'path';
-                maze[y][mazeSize - 2] = 'path';
-            }
-            for (let x = 1; x < mazeSize - 1; x++) {
-                maze[1][x] = 'path';
-                maze[mazeSize - 2][x] = 'path';
+            const stack = [{ x: 1, y: 1 }];
+            maze[1][1] = 0;
+            
+            while (stack.length > 0) {
+                const current = stack[stack.length - 1];
+                const neighbors = [];
+                
+                const directions = [
+                    { x: 0, y: -2 },
+                    { x: 0, y: 2 },
+                    { x: -2, y: 0 },
+                    { x: 2, y: 0 }
+                ];
+                
+                for (const dir of directions) {
+                    const nx = current.x + dir.x;
+                    const ny = current.y + dir.y;
+                    
+                    if (nx > 0 && nx < mazeSize - 1 && ny > 0 && ny < mazeSize - 1 && maze[ny][nx] === 1) {
+                        neighbors.push({ x: nx, y: ny, dx: dir.x, dy: dir.y });
+                    }
+                }
+                
+                if (neighbors.length > 0) {
+                    const next = neighbors[Math.floor(Math.random() * neighbors.length)];
+                    maze[next.y][next.x] = 0;
+                    maze[current.y + next.dy/2][current.x + next.dx/2] = 0;
+                    stack.push({ x: next.x, y: next.y });
+                } else {
+                    stack.pop();
+                }
             }
             
-            for (let i = 0; i < 8; i++) {
-                let x = Math.floor(Math.random() * (mazeSize - 2)) + 1;
-                let y = Math.floor(Math.random() * (mazeSize - 2)) + 1;
-                maze[y][x] = 'path';
-            }
-            
-            maze[1][1] = 'path';
-            maze[mazeSize - 2][mazeSize - 2] = 'path';
-            
-            playerPos = { x: 1, y: 1 };
-            goalPos = { x: mazeSize - 2, y: mazeSize - 2 };
+            // Гарантия, что цель доступна
+            maze[goalPos.y][goalPos.x] = 0;
         }
         
-        function renderMaze() {
-            const mazeElement = document.getElementById('maze');
-            mazeElement.style.gridTemplateColumns = `repeat(${mazeSize}, 40px)`;
-            mazeElement.innerHTML = '';
+        function initGame() {
+            generateMaze();
+            ballPos = { x: 1, y: 1 };
+            goalPos = { x: mazeSize - 2, y: mazeSize - 2 };
+            maze[goalPos.y][goalPos.x] = 0;
+            drawMaze();
+            document.getElementById('message').style.display = 'none';
+        }
+        
+        function drawMaze() {
+            const mazeDiv = document.getElementById('maze');
+            mazeDiv.style.gridTemplateColumns = `repeat(${mazeSize}, 35px)`;
+            mazeDiv.innerHTML = '';
             
             for (let y = 0; y < mazeSize; y++) {
                 for (let x = 0; x < mazeSize; x++) {
                     const cell = document.createElement('div');
                     cell.className = 'cell';
                     
-                    if (maze[y][x] === 'wall') {
+                    if (maze[y][x] === 1) {
                         cell.className += ' wall';
                     } else {
                         cell.className += ' path';
                     }
                     
-                    if (x === playerPos.x && y === playerPos.y) {
-                        cell.className += ' player';
-                    }
-                    
-                    if (x === goalPos.x && y === goalPos.y) {
+                    if (x === ballPos.x && y === ballPos.y) {
+                        cell.className += ' ball';
+                        cell.onclick = () => moveBall(x, y);
+                    } else if (x === goalPos.x && y === goalPos.y) {
                         cell.className += ' goal';
                     }
                     
-                    mazeElement.appendChild(cell);
+                    mazeDiv.appendChild(cell);
                 }
             }
         }
         
-        function movePlayer(dx, dy) {
-            const newX = playerPos.x + dx;
-            const newY = playerPos.y + dy;
+        function moveBall(currentX, currentY) {
+            const directions = [
+                { x: 0, y: -1 },
+                { x: 0, y: 1 },
+                { x: -1, y: 0 },
+                { x: 1, y: 0 }
+            ];
             
-            if (newX >= 0 && newX < mazeSize && newY >= 0 && newY < mazeSize && 
-                maze[newY][newX] === 'path') {
-                playerPos = { x: newX, y: newY };
-                renderMaze();
+            for (const dir of directions) {
+                const newX = currentX + dir.x;
+                const newY = currentY + dir.y;
                 
-                if (newX === goalPos.x && newY === goalPos.y) {
-                    document.getElementById('message').textContent = '🎉 Ты прошёл лабиринт!';
-                    document.getElementById('restart-btn').style.display = 'block';
+                if (newX >= 0 && newX < mazeSize && newY >= 0 && newY < mazeSize && maze[newY][newX] === 0) {
+                    ballPos = { x: newX, y: newY };
+                    drawMaze();
+                    
+                    if (newX === goalPos.x && newY === goalPos.y) {
+                        document.getElementById('message').style.display = 'block';
+                    }
+                    return;
                 }
             }
         }
-        
-        function initGame() {
-            generateMaze();
-            renderMaze();
-            document.getElementById('message').textContent = '';
-            document.getElementById('restart-btn').style.display = 'none';
-        }
-        
-        let touchStartX = 0;
-        let touchStartY = 0;
-        
-        document.addEventListener('touchstart', function(e) {
-            if (e.target.classList.contains('direction')) {
-                return;
-            }
-            touchStartX = e.touches[0].clientX;
-            touchStartY = e.touches[0].clientY;
-        }, false);
-        
-        document.addEventListener('touchend', function(e) {
-            if (e.target.classList.contains('direction')) {
-                return;
-            }
-            const touchEndX = e.changedTouches[0].clientX;
-            const touchEndY = e.changedTouches[0].clientY;
-            
-            const dx = touchEndX - touchStartX;
-            const dy = touchEndY - touchStartY;
-            
-            if (Math.abs(dx) > Math.abs(dy)) {
-                if (Math.abs(dx) > 30) {
-                    movePlayer(dx > 0 ? 1 : -1, 0);
-                }
-            } else {
-                if (Math.abs(dy) > 30) {
-                    movePlayer(0, dy > 0 ? 1 : -1);
-                }
-            }
-        }, false);
-        
-        document.addEventListener('keydown', function(e) {
-            switch(e.key) {
-                case 'ArrowUp': movePlayer(0, -1); break;
-                case 'ArrowDown': movePlayer(0, 1); break;
-                case 'ArrowLeft': movePlayer(-1, 0); break;
-                case 'ArrowRight': movePlayer(1, 0); break;
-            }
-        });
         
         initGame();
     </script>
