@@ -2,190 +2,224 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Рисование от животных</title>
+    <title>Рисуем животных</title>
     <style>
-        body, html {
+        /* --- СТИЛИ СТРАНИЦЫ --- */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fa;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
             margin: 0;
-            padding: 0;
-            overflow: hidden;
-            height: 100%;
-            background-color: #f0f8ff; /* Светло-голубой фон */
-            cursor: crosshair; /* Меняем курсор для удобства рисования */
+            padding: 20px;
+            box-sizing: border-box;
         }
-        #canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
+        .container {
+            text-align: center;
+            background-color: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            width: 90%;
+            max-width: 600px;
         }
-        .animal {
-            position: absolute;
-            width: 80px;
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        p {
+            color: #7f8c8d;
+            margin-bottom: 25px;
+        }
+
+        /* --- СТИЛИ ХОЛСТА И РИСОВАНИЯ --- */
+        canvas {
+            touch-action: none; /* Отключаем стандартное поведение браузера при касании */
+            cursor: crosshair;
+            border: 2px solid #ddd;
+            background-color: #fffaf0;
+            image-rendering: pixelated; /* Для четких линий */
+        }
+
+        /* --- СТИЛИ КНОПКИ --- */
+        button#clearBtn {
+            margin-top: 15px;
+            padding: 12px 25px;
+            font-size: 16px;
+            border: none;
+            border-radius: 8px;
+            background-color: #ff9a00;
+            color: white;
             cursor: pointer;
-            user-select: none; /* Убираем выделение текста */
+            transition: opacity 0.3s ease;
         }
-        .cat {
-            background-color: #f4a261;
+        button#clearBtn:hover {
+            opacity: 0.9;
         }
-        .dog {
-            background-color: #e76f51;
+
+        /* --- БЛОК РЕЗУЛЬТАТА --- */
+        #resultBox {
+            margin-top: 25px;
+            font-size: 22px;
+            font-weight: bold;
+        }
+        #label {
+            color: #2c3e50;
+        }
+        #confidence {
+            color: #7f8c8d;
+            font-style: italic;
         }
     </style>
 </head>
 <body>
 
-<!-- Холст для рисования линий -->
-<canvas id="canvas"></canvas>
+<div class="container">
+    <h1>Нарисуй животное пальцем!</h1>
+    <p>Попробуй нарисовать кошку или собаку.</p>
 
-<!-- Контейнер для животных (они будут добавляться сюда скриптом) -->
-<div id="animals-container"></div>
+    <!-- Холст для рисования -->
+    <canvas id="drawingCanvas"></canvas>
+
+    <!-- Кнопка очистки холста -->
+    <button id="clearBtn">Очистить</button>
+
+    <!-- Блок для вывода результата предсказания -->
+    <div id="resultBox">
+        <span id="label"></span><br>
+        <span id="confidence"></span>
+    </div>
+</div>
+
+<!-- Библиотека TensorFlow.js (нужна для работы модели) -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.16.0/dist/tf.min.js"></script>
 
 <script>
-    // --- 1. Настройка холста ---
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
+// --- НАЧАЛО СКРИПТА ---
+const canvas = document.getElementById('drawingCanvas');
+const ctx = canvas.getContext('2d');
+const clearBtn = document.getElementById('clearBtn');
+const labelSpan = document.getElementById('label');
+const confidenceSpan = document.getElementById('confidence');
 
-    function resizeCanvas() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+// Устанавливаем размер холста адаптивно
+function resizeCanvas() {
+    const containerWidth = document.querySelector('.container').clientWidth - 40; // Учитываем padding
+    canvas.width = containerWidth * 0.9;
+    canvas.height = canvas.width / 2; // Соотношение сторон 2:1
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+// Настройки кисти
+ctx.lineCap = 'round';
+ctx.strokeStyle = '#000'; // Тонкие черные линии
+ctx.lineWidth = 8;
+
+let isDrawing = false;
+let lastX = 0;
+let lastY = 0;
+
+// Получение координат касания/мыши
+function getPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    if (e.touches) { // Сенсорный ввод
+        return [e.touches[0].clientX - rect.left, e.touches[0].clientY - rect.top];
+    } else { // Десктопный ввод
+        return [e.clientX - rect.left, e.clientY - rect.top];
     }
-    window.addEventListener('resize', resizeCanvas);
-    resizeCanvas(); // Вызываем один раз при загрузке
+}
 
-    // --- 2. Создание животных ---
-    const animalsContainer = document.getElementById('animals-container');
-    const animalTypes = ['cat', 'dog'];
+// Функции событий рисования
+function startDraw(e) {
+    isDrawing = true;
+    [lastX, lastY] = getPos(e);
+}
+function draw(e) {
+    if (!isDrawing) return;
+    const [x, y] = getPos(e);
+    ctx.beginPath();
+    ctx.moveTo(lastX, lastY);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+    [lastX, lastY] = [x, y];
+}
+function stopDraw() {
+    isDrawing = false;
+    predict(); // Запускаем распознавание после того, как палец поднят
+}
 
-    function createAnimal() {
-        const animal = document.createElement('div');
-        const type = animalTypes[Math.floor(Math.random() * animalTypes.length)];
-        animal.classList.add('animal', type);
+// Добавляем обработчики для сенсорных устройств и мыши
+canvas.addEventListener('touchstart', startDraw);
+canvas.addEventListener('touchmove', draw);
+canvas.addEventListener('touchend', stopDraw);
+canvas.addEventListener('touchcancel', stopDraw);
 
-        // Задаем случайную позицию, чтобы животное не выходило за пределы экрана
-        const x = Math.random() * (window.innerWidth - 80);
-        const y = Math.random() * (window.innerHeight - 80);
+canvas.addEventListener('mousedown', startDraw);
+canvas.addEventListener('mousemove', draw);
+canvas.addEventListener('mouseup', stopDraw);
+canvas.addEventListener('mouseout', stopDraw);
 
-        animal.style.left = `${x}px`;
-        animal.style.top = `${y}px`;
+// Очистка холста
+clearBtn.addEventListener('click', () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    labelSpan.textContent = '';
+    confidenceSpan.textContent = '';
+});
 
-        animalsContainer.appendChild(animal);
-
-        // Удаляем животное через некоторое время, чтобы не засорять память
-        setTimeout(() => animal.remove(), 30000); // 30 секунд
-    }
-
-    // Создаем нового животного каждые 2 секунды
-    setInterval(createAnimal, 2000);
-
-
-    // --- 3. Логика рисования линий ---
-    let isDrawing = false;
-    let currentLine = null;
-
-    // Класс для управления линией
-    class Line {
-        constructor(startX, startY) {
-            this.points = [{ x: startX, y: startY }];
-            this.growSpeed = 2; // Скорость "доращивания" линии (пикселей за кадр)
-            this.currentLength = 0;
-            this.totalLength = 0;
-        }
-
-        addPoint(x, y) {
-            this.points.push({ x, y });
-            // Пересчитываем общую длину линии при добавлении новой точки
-            this.totalLength += Math.hypot(x - this.points[this.points.length - 2].x, y - this.points[this.points.length - 2].y);
-        }
-
-        update() {
-            if (this.currentLength < this.totalLength) {
-                this.currentLength += this.growSpeed;
-                if (this.currentLength > this.totalLength) {
-                    this.currentLength = this.totalLength;
-                }
-                this.draw();
-                return true; // Линия еще не дорисована
-            }
-            return false; // Линия дорисована
-        }
-
-        draw() {
-            ctx.beginPath();
-            let remainingLength = this.currentLength;
-
-            for (let i = 1; i < this.points.length; i++) {
-                const p0 = this.points[i - 1];
-                const p1 = this.points[i];
-                const segmentLength = Math.hypot(p1.x - p0.x, p1.y - p0.y);
-
-                if (remainingLength >= segmentLength) {
-                    // Рисуем весь сегмент
-                    ctx.lineTo(p1.x, p1.y);
-                    remainingLength -= segmentLength;
-                } else if (remainingLength > 0) {
-                    // Рисуем только часть сегмента
-                    const ratio = remainingLength / segmentLength;
-                    const x = p0.x + (p1.x - p0.x) * ratio;
-                    const y = p0.y + (p1.y - p0.y) * ratio;
-                    ctx.lineTo(x, y);
-                    remainingLength = 0;
-                    break; // Остальную часть линии рисовать не нужно
-                } else {
-                    break; // Длины больше нет, выходим из цикла
-                }
-            }
-
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-            ctx.lineWidth = 3;
-            ctx.stroke();
-        }
+// --- ЛОГИКА РАСПОЗНАВАНИЯ ---
+async function predict() {
+    // Проверяем, не пустой ли холст
+    if (ctx.getImageData(0, 0, 1, 1).data.every(v => v === 255)) {
+        console.log("Холст пуст");
+        return;
     }
 
+    // URL вашей модели из Teachable Machine
+    const MODEL_URL = "https://teachablemachine.withgoogle.com/models/your-model-url-here/";
 
-    // Обработчики событий мыши на холсте
-    canvas.addEventListener('mousedown', (e) => {
-        isDrawing = true;
-        currentLine = new Line(e.clientX, e.clientY);
-    });
+    try {
+        // Загружаем модель и метаданные
+        const model = await tf.loadGraphModel(MODEL_URL + 'model.json');
+        const metadata = await fetch(MODEL_URL + 'metadata.json').then(r => r.json());
 
-    canvas.addEventListener('mousemove', (e) => {
-        if (isDrawing && currentLine) {
-            currentLine.addPoint(e.clientX, e.clientY);
-        }
-    });
+        // Подготовка изображения для нейросети
+        const img = new Image();
+        img.src = canvas.toDataURL();
+        await img.decode();
 
-    canvas.addEventListener('mouseup', () => {
-        isDrawing = false;
-        if (currentLine) {
-            // Добавляем завершенную линию в массив для анимации
-            activeLines.push(currentLine);
-            currentLine = null;
-        }
-    });
+        const tensor = tf.browser.fromPixels(img)
+            .resizeBilinear([224, 224]) // Приводим к размеру, на котором училась модель
+            .expandDims(0) // Добавляем измерение batch
+            .toFloat()
+            .div(tf.scalar(127))
+            .sub(tf.scalar(1));
 
+        // Делаем предсказание
+        const predictions = await model.predict(tensor);
+        const results = Array.from(predictions.dataSync());
 
-    // --- 4. Анимация ---
-    const activeLines = [];
+        // Находим самый вероятный класс
+        const maxIndex = results.indexOf(Math.max(...results));
+        const predictedLabel = metadata.labels[maxIndex];
+        const confidence = (Math.max(...results) * 100).toFixed(2);
 
-    function animate() {
-        // Очищаем холст перед каждым кадром
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // Выводим результат на экран
+        labelSpan.textContent = `Это ${predictedLabel}`;
+        confidenceSpan.textContent = `(уверенность ${confidence}%)`;
 
-        // Обновляем и рисуем все активные линии
-        for (let i = activeLines.length - 1; i >= 0; i--) {
-            const line = activeLines[i];
-            if (!line.update()) {
-                // Если линия полностью дорисована, удаляем её из массива
-                activeLines.splice(i, 1);
-            }
-        }
+        // Освобождаем память GPU
+        tensor.dispose();
+        predictions.dispose();
 
-        requestAnimationFrame(animate);
+    } catch (error) {
+        console.error("Ошибка загрузки модели:", error);
+        alert("Не удалось загрузить модель распознавания. Проверьте консоль разработчика.");
     }
-
-    animate(); // Запускаем анимацию
-
+}
 </script>
+
 </body>
 </html>
