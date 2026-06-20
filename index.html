@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Игра Лабиринт</title>
+    <title>Лабиринт: Удобное управление</title>
     <style>
-        /* Общие стили */
         body, html {
             height: 100%;
             margin: 0;
@@ -15,57 +14,64 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
-        /* Контейнер игры */
         #game-container {
             position: relative;
-            width: 400px; /* Размер лабиринта */
+            width: 400px;
             height: 400px;
             background-color: #fff;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            touch-action: none; /* Отключаем стандартное поведение браузера при касании */
+            box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+            touch-action: none; /* Критически важно для отключения прокрутки браузера */
         }
 
-        /* Стили для стен лабиринта */
         .wall {
             position: absolute;
-            background-color: #333; /* Цвет стен */
+            background-color: #333;
         }
 
-        /* Игрок (шарик) */
         #player {
             position: absolute;
             width: 25px;
             height: 25px;
-            background-color: #ff5722; /* Цвет игрока */
-            border-radius: 50%; /* Делаем круглым */
-            top: 10px; /* Начальная позиция */
+            background-color: #ff5722;
+            border-radius: 50%;
+            top: 10px;
             left: 10px;
-            touch-action: none; /* Игрок не должен прокручивать страницу */
         }
 
-        /* Финишная точка */
         #finish {
             position: absolute;
             width: 25px;
             height: 25px;
-            background-color: #4caf50; /* Цвет финиша */
+            background-color: #4caf50;
             border-radius: 50%;
-            top: 360px; /* Позиция финиша */
+            top: 360px;
             left: 360px;
         }
 
-        /* Сообщения о результате */
-        #message {
+        /* Стили для сообщения */
+        #message-overlay {
             position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 24px;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
             color: white;
+            font-size: 28px;
             text-align: center;
-            display: none; /* Скрыто по умолчанию */
+            display: none; /* Скрыт по умолчанию */
+        }
+
+        #message-overlay button {
+            margin-top: 20px;
+            padding: 12px 30px;
+            font-size: 18px;
+            cursor: pointer;
         }
     </style>
 </head>
@@ -82,15 +88,14 @@
 
         <div class="wall" style="bottom: 40px; left: 60px; width: 80px; height: 20px;"></div>
 
-        <!-- Игрок -->
+        <!-- Игрок и финиш -->
         <div id="player"></div>
-
-        <!-- Финиш -->
         <div id="finish"></div>
 
-        <!-- Сообщение о победе/поражении -->
-        <div id="message">
-            <p id="msg-text"></p>
+        <!-- Сообщение о результате -->
+        <div id="message-overlay">
+            <p id="msg-text">Стена! Попробуй снова.</p>
+            <button onclick="resetGame()">Начать заново</button>
         </div>
     </div>
 
@@ -99,97 +104,90 @@
         const walls = document.querySelectorAll('.wall');
         const finish = document.getElementById('finish');
         const gameContainer = document.getElementById('game-container');
-        const messageBox = document.getElementById('message');
+        const messageOverlay = document.getElementById('message-overlay');
         const msgText = document.getElementById('msg-text');
 
-        let startX, startY, currentX, currentY;
+        let isGameActive = true; // Флаг для проверки состояния игры
 
-        // Функция для проверки столкновения со стенами
-        function checkCollision() {
-            const playerRect = player.getBoundingClientRect();
+        // --- Логика управления ---
 
-            // Проверка выхода за границы лабиринта
-            if (playerRect.left < gameContainer.getBoundingClientRect().left ||
-                playerRect.right > gameContainer.getBoundingClientRect().right ||
-                playerRect.top < gameContainer.getBoundingClientRect().top ||
-                playerRect.bottom > gameContainer.getBoundingClientRect().bottom) {
-                endGame(false);
-                return true;
-            }
+        gameContainer.addEventListener('touchmove', function(event) {
+             if (!isGameActive) return; // Если игра окончена, ничего не делаем
 
-            // Проверка столкновения со стенами
-            for (let wall of walls) {
-                const wallRect = wall.getBoundingClientRect();
-                if (playerRect.right > wallRect.left &&
-                    playerRect.left < wallRect.right &&
-                    playerRect.bottom > wallRect.top &&
-                    playerRect.top < wallRect.bottom) {
-                    endGame(false);
-                    return true;
-                }
-            }
+             event.preventDefault(); // Отменяем стандартное поведение (прокрутку)
 
-            // Проверка достижения финиша
-            const finishRect = finish.getBoundingClientRect();
-             if (playerRect.right > finishRect.left &&
-                 playerRect.left < finishRect.right &&
-                 playerRect.bottom > finishRect.top &&
-                 playerRect.top < finishRect.bottom) {
-                endGame(true);
-                return true;
+             // Получаем координаты касания относительно игрового поля
+             const touch = event.touches[0];
+             const rect = gameContainer.getBoundingClientRect();
+             const x = touch.clientX - rect.left - (player.offsetWidth / 2);
+             const y = touch.clientY - rect.top - (player.offsetHeight / 2);
+
+             // Устанавливаем новые координаты игроку
+             player.style.left = x + 'px';
+             player.style.top = y + 'px';
+
+             // Немедленно проверяем столкновение после каждого движения
+             checkCollision();
+         });
+
+         // --- Логика столкновений ---
+
+         function checkCollision() {
+             const playerRect = player.getBoundingClientRect();
+             const finishRect = finish.getBoundingClientRect();
+
+             // Проверка выхода за границы лабиринта
+             const containerRect = gameContainer.getBoundingClientRect();
+             if (playerRect.left < containerRect.left ||
+                 playerRect.right > containerRect.right ||
+                 playerRect.top < containerRect.top ||
+                 playerRect.bottom > containerRect.bottom) {
+                 endGame(false);
+                 return;
              }
 
-             return false;
-        }
+             // Проверка столкновения со стенами
+             for (let wall of walls) {
+                 const wallRect = wall.getBoundingClientRect();
+                 if (isIntersecting(playerRect, wallRect)) {
+                     endGame(false);
+                     return;
+                 }
+             }
 
-        // Функция завершения игры
-        function endGame(isWin) {
+             // Проверка достижения финиша
+             if (isIntersecting(playerRect, finishRect)) {
+                 endGame(true);
+                 return;
+             }
+         }
+
+         // Вспомогательная функция для проверки пересечения двух прямоугольников
+         function isIntersecting(a, b) {
+             return a.right > b.left && a.left < b.right && a.bottom > b.top && a.top < b.bottom;
+         }
+
+         // --- Завершение и сброс игры ---
+
+         function endGame(isWin) {
+             isGameActive = false; // Останавливаем игру
+
              if (isWin) {
                  msgText.textContent = "Победа!";
-                 messageBox.style.backgroundColor = "#4caf50";
+                 messageOverlay.style.backgroundColor = "rgba(46, 125, 50, 0.7)";
              } else {
                  msgText.textContent = "Стена! Попробуй снова.";
-                 messageBox.style.backgroundColor = "#f44336";
+                 messageOverlay.style.backgroundColor = "rgba(173, 34, 34, 0.7)";
              }
-             messageBox.style.display = 'block';
-             // Удаляем обработчики событий, чтобы остановить игру
-             player.removeEventListener('touchmove', onTouchMove);
-             player.removeEventListener('touchend', onTouchEnd);
+             messageOverlay.style.display = 'flex';
          }
 
-         // Обработчик начала касания
-         function onTouchStart(event) {
-             event.preventDefault(); // Предотвращаем прокрутку страницы
+         function resetGame() {
+             // Возвращаем игрока в начальную позицию
+             player.style.left = '10px';
+             player.style.top = '10px';
 
-             const touch = event.touches[0];
-             startX = touch.clientX;
-             startY = touch.clientY;
-             currentX = player.offsetLeft;
-             currentY = player.offsetTop;
+             // Сбрасываем сообщение и флаг игры
+             messageOverlay.style.display = 'none';
+             isGameActive = true;
          }
-
-         // Обработчик движения касания
-         function onTouchMove(event) {
-             if (!startX) return;
-             event.preventDefault();
-
-             const touch = event.touches[0];
-             const deltaX = touch.clientX - startX;
-             const deltaY = touch.clientY - startY;
-
-             player.style.left = (currentX + deltaX) + 'px';
-             player.style.top = (currentY + deltaY) + 'px';
-         }
-
-         // Обработчик окончания касания (необязателен для логики, но нужен для очистки)
-         function onTouchEnd() {
-             startX = null;
-         }
-
-         // Добавляем слушатели событий к игроку для управления пальцем
-         player.addEventListener('touchstart', onTouchStart);
-         player.addEventListener('touchmove', onTouchMove);
-         player.addEventListener('touchend', onTouchEnd);
-    </script>
-</body>
-</html>
