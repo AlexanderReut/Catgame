@@ -100,38 +100,90 @@
             display: none;
         }
         
-        .controls {
-            display: grid;
-            grid-template-columns: repeat(3, 60px);
-            grid-template-rows: repeat(2, 60px);
-            gap: 8px;
-            margin-top: 15px;
-        }
-        
-        .control-btn {
+        #direction-circle {
+            width: 180px;
+            height: 180px;
             background: #667eea;
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 24px;
+            border-radius: 50%;
+            margin-top: 15px;
+            position: relative;
             cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
         }
         
-        .control-btn:active {
+        #direction-circle:active {
             background: #5a6fd6;
         }
         
-        .control-btn.empty {
-            background: transparent;
+        .direction {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background: #ecf0f1;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .direction:active {
+            background: #d5dbdb;
+        }
+        
+        .direction.up {
+            top: 10px;
+            left: 65px;
+        }
+        
+        .direction.down {
+            bottom: 10px;
+            left: 65px;
+        }
+        
+        .direction.left {
+            top: 65px;
+            left: 10px;
+        }
+        
+        .direction.right {
+            top: 65px;
+            right: 10px;
+        }
+        
+        .center-dot {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background: #764ba2;
+            border-radius: 50%;
+            top: 70px;
+            left: 70px;
         }
         
         @media (max-width: 500px) {
             .cell {
                 width: 32px;
                 height: 32px;
+            }
+            h1 {
+                font-size: 24px;
+            }
+            #direction-circle {
+                width: 150px;
+                height: 150px;
+            }
+            .direction {
+                width: 45px;
+                height: 45px;
+                font-size: 24px;
+            }
+            .center-dot {
+                width: 35px;
+                height: 35px;
+                top: 57px;
+                left: 57px;
             }
         }
     </style>
@@ -144,16 +196,12 @@
         <div id="message"></div>
         <button id="restart-btn" onclick="initGame()">Новый лабиринт</button>
         
-        <div class="controls">
-            <button class="control-btn empty"></button>
-            <button class="control-btn" onclick="movePlayer(0, -1)">⬆️</button>
-            <button class="control-btn empty"></button>
-            <button class="control-btn" onclick="movePlayer(-1, 0)">⬅️</button>
-            <button class="control-btn empty"></button>
-            <button class="control-btn" onclick="movePlayer(1, 0)">➡️</button>
-            <button class="control-btn empty"></button>
-            <button class="control-btn" onclick="movePlayer(0, 1)">⬇️</button>
-            <button class="control-btn empty"></button>
+        <div id="direction-circle">
+            <div class="direction up" onclick="movePlayer(0, -1)">⬆️</div>
+            <div class="direction down" onclick="movePlayer(0, 1)">⬇️</div>
+            <div class="direction left" onclick="movePlayer(-1, 0)">⬅️</div>
+            <div class="direction right" onclick="movePlayer(1, 0)">➡️</div>
+            <div class="center-dot"></div>
         </div>
     </div>
 
@@ -250,11 +298,17 @@
         let touchStartY = 0;
         
         document.addEventListener('touchstart', function(e) {
+            if (e.target.classList.contains('direction')) {
+                return;
+            }
             touchStartX = e.touches[0].clientX;
             touchStartY = e.touches[0].clientY;
         }, false);
         
         document.addEventListener('touchend', function(e) {
+            if (e.target.classList.contains('direction')) {
+                return;
+            }
             const touchEndX = e.changedTouches[0].clientX;
             const touchEndY = e.changedTouches[0].clientY;
             
