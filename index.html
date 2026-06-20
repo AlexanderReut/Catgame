@@ -5,184 +5,191 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Игра Лабиринт</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
+        /* Общие стили */
+        body, html {
+            height: 100%;
             margin: 0;
+            padding: 0;
+            overflow: hidden;
             background-color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
-        
-        h1 {
-            margin-bottom: 20px;
-        }
-        
+
+        /* Контейнер игры */
         #game-container {
             position: relative;
-            border: 3px solid #333;
+            width: 400px; /* Размер лабиринта */
+            height: 400px;
             background-color: #fff;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            touch-action: none; /* Отключаем стандартное поведение браузера при касании */
         }
-        
-        canvas {
-            display: block;
+
+        /* Стили для стен лабиринта */
+        .wall {
+            position: absolute;
+            background-color: #333; /* Цвет стен */
         }
-        
+
+        /* Игрок (шарик) */
+        #player {
+            position: absolute;
+            width: 25px;
+            height: 25px;
+            background-color: #ff5722; /* Цвет игрока */
+            border-radius: 50%; /* Делаем круглым */
+            top: 10px; /* Начальная позиция */
+            left: 10px;
+            touch-action: none; /* Игрок не должен прокручивать страницу */
+        }
+
+        /* Финишная точка */
+        #finish {
+            position: absolute;
+            width: 25px;
+            height: 25px;
+            background-color: #4caf50; /* Цвет финиша */
+            border-radius: 50%;
+            top: 360px; /* Позиция финиша */
+            left: 360px;
+        }
+
+        /* Сообщения о результате */
         #message {
-            margin-top: 20px;
-            font-size: 18px;
-            font-weight: bold;
-            color: #d63031;
-            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+            color: white;
+            text-align: center;
+            display: none; /* Скрыто по умолчанию */
         }
     </style>
 </head>
 <body>
-    <h1>Лабиринт</h1>
+
     <div id="game-container">
-        <canvas id="maze" width="400" height="400"></canvas>
-        <div id="message">Вы прошли лабиринт!</div>
+        <!-- Стены лабиринта -->
+        <div class="wall" style="top: 0; left: 150px; width: 100px; height: 20px;"></div>
+        <div class="wall" style="top: 80px; left: 150px; width: 100px; height: 20px;"></div>
+        <div class="wall" style="top: 160px; left: 150px; width: 100px; height: 20px;"></div>
+
+        <div class="wall" style="top: 60px; left: 60px; width: 20px; height: 80px;"></div>
+        <div class="wall" style="top: 60px; right: 60px; width: 20px; height: 80px;"></div>
+
+        <div class="wall" style="bottom: 40px; left: 60px; width: 80px; height: 20px;"></div>
+
+        <!-- Игрок -->
+        <div id="player"></div>
+
+        <!-- Финиш -->
+        <div id="finish"></div>
+
+        <!-- Сообщение о победе/поражении -->
+        <div id="message">
+            <p id="msg-text"></p>
+        </div>
     </div>
 
     <script>
-        const canvas = document.getElementById('maze');
-        const ctx = canvas.getContext('2d');
-        const message = document.getElementById('message');
-        
-        // Размеры ячеек лабиринта
-        const cellSize = 40;
-        const cols = canvas.width / cellSize;
-        const rows = canvas.height / cellSize;
-        
-        // Игрок
-        let player = { x: 1, y: 1 };
-        
-        // Финиш
-        let finish = { x: cols - 2, y: rows - 2 };
-        
-        // Лабиринт (0 — проход, 1 — стена)
-        let maze = [];
-        
-        // Генерация лабиринта (простой алгоритм)
-        function generateMaze() {
-            maze = Array(rows).fill().map(() => Array(cols).fill(1));
-            
-            function carve(x, y) {
-                maze[y][x] = 0;
-                const directions = [[0, -2], [2, 0], [0, 2], [-2, 0]];
-                shuffle(directions);
-                
-                for (const [dx, dy] of directions) {
-                    const nx = x + dx;
-                    const ny = y + dy;
-                    
-                    if (nx > 0 && nx < cols - 1 && ny > 0 && ny < rows - 1 && maze[ny][nx] === 1) {
-                        maze[y + dy / 2][x + dx / 2] = 0;
-                        carve(nx, ny);
-                    }
-                }
+        const player = document.getElementById('player');
+        const walls = document.querySelectorAll('.wall');
+        const finish = document.getElementById('finish');
+        const gameContainer = document.getElementById('game-container');
+        const messageBox = document.getElementById('message');
+        const msgText = document.getElementById('msg-text');
+
+        let startX, startY, currentX, currentY;
+
+        // Функция для проверки столкновения со стенами
+        function checkCollision() {
+            const playerRect = player.getBoundingClientRect();
+
+            // Проверка выхода за границы лабиринта
+            if (playerRect.left < gameContainer.getBoundingClientRect().left ||
+                playerRect.right > gameContainer.getBoundingClientRect().right ||
+                playerRect.top < gameContainer.getBoundingClientRect().top ||
+                playerRect.bottom > gameContainer.getBoundingClientRect().bottom) {
+                endGame(false);
+                return true;
             }
-            
-            carve(1, 1);
-            maze[1][0] = 0; // Вход
-            maze[rows - 2][cols - 1] = 0; // Выход
-        }
-        
-        // Перемешивание массива
-        function shuffle(array) {
-            for (let i = array.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [array[i], array[j]] = [array[j], array[i]];
-            }
-        }
-        
-        // Отрисовка лабиринта
-        function drawMaze() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            for (let y = 0; y < rows; y++) {
-                for (let x = 0; x < cols; x++) {
-                    if (maze[y][x] === 1) {
-                        ctx.fillStyle = '#333';
-                        ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
-                    } else {
-                        ctx.strokeStyle = '#ddd';
-                        ctx.strokeRect(x * cellSize, y * cellSize, cellSize, cellSize);
-                    }
-                }
-            }
-            
-            // Отрисовка игрока
-            ctx.fillStyle = '#007bff';
-            ctx.beginPath();
-            ctx.arc(
-                player.x * cellSize + cellSize / 2,
-                player.y * cellSize + cellSize / 2,
-                cellSize / 3,
-                0,
-                2 * Math.PI
-            );
-            ctx.fill();
-            
-            // Отрисовка финиша
-            ctx.fillStyle = '#28a745';
-            ctx.fillRect(
-                finish.x * cellSize + 5,
-                finish.y * cellSize + 5,
-                cellSize - 10,
-                cellSize - 10
-            );
-        }
-        
-        // Проверка победы
-        function checkWin() {
-            if (player.x === finish.x && player.y === finish.y) {
-                message.style.display = 'block';
-                setTimeout(() => {
-                    message.style.display = 'none';
-                    generateMaze();
-                    player = { x: 1, y: 1 };
-                    drawMaze();
-                }, 2000);
-            }
-        }
-        
-        // Обработка клавиш
-        document.addEventListener('keydown', (e) => {
-            let newX = player.x;
-            let newY = player.y;
-            
-            switch (e.key) {
-                case 'ArrowUp':
-                    newY--;
-                    break;
-                case 'ArrowDown':
-                    newY++;
-                    break;
-                case 'ArrowLeft':
-                    newX--;
-                    break;
-                case 'ArrowRight':
-                    newX++;
-                    break;
-                default:
-                    return;
-            }
-            
+
             // Проверка столкновения со стенами
-            if (maze[newY][newX] === 0) {
-                player.x = newX;
-                player.y = newY;
-                drawMaze();
-                checkWin();
+            for (let wall of walls) {
+                const wallRect = wall.getBoundingClientRect();
+                if (playerRect.right > wallRect.left &&
+                    playerRect.left < wallRect.right &&
+                    playerRect.bottom > wallRect.top &&
+                    playerRect.top < wallRect.bottom) {
+                    endGame(false);
+                    return true;
+                }
             }
-        });
-        
-        // Инициализация игры
-        generateMaze();
-        drawMaze();
+
+            // Проверка достижения финиша
+            const finishRect = finish.getBoundingClientRect();
+             if (playerRect.right > finishRect.left &&
+                 playerRect.left < finishRect.right &&
+                 playerRect.bottom > finishRect.top &&
+                 playerRect.top < finishRect.bottom) {
+                endGame(true);
+                return true;
+             }
+
+             return false;
+        }
+
+        // Функция завершения игры
+        function endGame(isWin) {
+             if (isWin) {
+                 msgText.textContent = "Победа!";
+                 messageBox.style.backgroundColor = "#4caf50";
+             } else {
+                 msgText.textContent = "Стена! Попробуй снова.";
+                 messageBox.style.backgroundColor = "#f44336";
+             }
+             messageBox.style.display = 'block';
+             // Удаляем обработчики событий, чтобы остановить игру
+             player.removeEventListener('touchmove', onTouchMove);
+             player.removeEventListener('touchend', onTouchEnd);
+         }
+
+         // Обработчик начала касания
+         function onTouchStart(event) {
+             event.preventDefault(); // Предотвращаем прокрутку страницы
+
+             const touch = event.touches[0];
+             startX = touch.clientX;
+             startY = touch.clientY;
+             currentX = player.offsetLeft;
+             currentY = player.offsetTop;
+         }
+
+         // Обработчик движения касания
+         function onTouchMove(event) {
+             if (!startX) return;
+             event.preventDefault();
+
+             const touch = event.touches[0];
+             const deltaX = touch.clientX - startX;
+             const deltaY = touch.clientY - startY;
+
+             player.style.left = (currentX + deltaX) + 'px';
+             player.style.top = (currentY + deltaY) + 'px';
+         }
+
+         // Обработчик окончания касания (необязателен для логики, но нужен для очистки)
+         function onTouchEnd() {
+             startX = null;
+         }
+
+         // Добавляем слушатели событий к игроку для управления пальцем
+         player.addEventListener('touchstart', onTouchStart);
+         player.addEventListener('touchmove', onTouchMove);
+         player.addEventListener('touchend', onTouchEnd);
     </script>
 </body>
 </html>
