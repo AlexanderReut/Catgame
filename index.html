@@ -16,7 +16,7 @@
   }
   .game {
     width: 100%;
-    max-width: 520px;
+    max-width: 560px;
     background: #17223b;
     border-radius: 16px;
     padding: 24px;
@@ -24,13 +24,79 @@
   }
   h1 { margin: 0 0 6px; font-size: 26px; }
   p { color: #a8b6cc; margin: 4px 0 18px; }
+
+  .panel {
+    background: #0d1526;
+    border: 1px solid #26324a;
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 16px;
+  }
+  .panel h2 {
+    margin: 0 0 10px;
+    font-size: 15px;
+    color: #a8b6cc;
+  }
+  .positions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .position {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  .position span {
+    font-size: 12px;
+    color: #7d8ba3;
+  }
+  .position input {
+    width: 44px;
+    height: 44px;
+    text-align: center;
+    font-size: 20px;
+    font-weight: 700;
+    text-transform: uppercase;
+    border-radius: 10px;
+    border: 1px solid #33415c;
+    background: #17223b;
+    color: #34d399;
+  }
+  .excluded {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .letter-chip {
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    border: 1px solid #33415c;
+    background: #17223b;
+    color: #e8eef7;
+    cursor: pointer;
+    font-weight: 700;
+    user-select: none;
+  }
+  .letter-chip.excluded {
+    background: #7f1d1d;
+    border-color: #b91c1c;
+    color: #fecaca;
+    text-decoration: line-through;
+  }
+
   input, button {
     font-size: 17px;
     border-radius: 10px;
     padding: 12px;
     border: 1px solid #33415c;
   }
-  input {
+  #guess {
     width: 100%;
     box-sizing: border-box;
     background: #0d1526;
@@ -51,6 +117,7 @@
   .status { min-height: 22px; margin: 12px 0; font-weight: 600; }
   .win { color: #34d399; }
   .lose { color: #f87171; }
+
   ul { list-style: none; padding: 0; margin: 0; }
   li {
     display: flex;
@@ -77,6 +144,16 @@
   <h1>Быки и коровы</h1>
   <p>Угадайте слово из <span id="length"></span> букв. Все буквы разные.</p>
 
+  <div class="panel">
+    <h2>Буквы, которые точно стоят на своих местах</h2>
+    <div class="positions" id="positions"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Буквы, которых нет в слове — нажмите, чтобы исключить</h2>
+    <div class="excluded" id="alphabet"></div>
+  </div>
+
   <input id="guess" maxlength="5" placeholder="СЛОВО" autocomplete="off">
   <button id="check">Проверить</button>
   <div class="status" id="status"></div>
@@ -87,29 +164,98 @@
 
 <script>
 const WORDS = ["КНИГА", "ВЕСНА", "ЗЕМЛЯ", "МОРЕ", "ГОРОД", "ЛУНА", "ТРАВА", "ОКНО", "РУКА", "ЛЕТО"];
+const ALPHABET = "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ".split("");
 
 let secret = "";
 let attempts = 0;
 const maxAttempts = 10;
 
+let knownLetters = [];
+let excludedLetters = new Set();
+
 const guessInput = document.getElementById("guess");
 const statusEl = document.getElementById("status");
 const historyEl = document.getElementById("history");
 const lengthEl = document.getElementById("length");
+const positionsEl = document.getElementById("positions");
+const alphabetEl = document.getElementById("alphabet");
 
 function startGame() {
   secret = WORDS[Math.floor(Math.random() * WORDS.length)];
   attempts = 0;
+  knownLetters = Array(secret.length).fill("");
+  excludedLetters = new Set();
+
   guessInput.value = "";
   guessInput.maxLength = secret.length;
   guessInput.placeholder = "СЛОВО ИЗ " + secret.length + " БУКВ";
   lengthEl.textContent = secret.length;
+
   statusEl.textContent = "";
   statusEl.className = "status";
   historyEl.innerHTML = "";
+
   guessInput.disabled = false;
   document.getElementById("check").disabled = false;
+
+  renderKnownLetters();
+  renderAlphabet();
   guessInput.focus();
+}
+
+function renderKnownLetters() {
+  positionsEl.innerHTML = "";
+
+  for (let i = 0; i < secret.length; i++) {
+    const wrapper = document.createElement("div");
+    wrapper.className = "position";
+
+    const label = document.createElement("span");
+    label.textContent = i + 1;
+
+    const input = document.createElement("input");
+    input.maxLength = 1;
+    input.value = knownLetters[i];
+    input.dataset.index = i;
+
+    input.addEventListener("input", e => {
+      const value = e.target.value.toUpperCase().replace(/[^А-ЯЁ]/g, "");
+      e.target.value = value;
+      knownLetters[i] = value;
+
+      if (value && i < secret.length - 1) {
+        positionsEl.querySelectorAll("input")[i + 1].focus();
+      }
+    });
+
+    wrapper.append(label, input);
+    positionsEl.append(wrapper);
+  }
+}
+
+function renderAlphabet() {
+  alphabetEl.innerHTML = "";
+
+  ALPHABET.forEach(letter => {
+    const chip = document.createElement("div");
+    chip.className = "letter-chip";
+    chip.textContent = letter;
+
+    if (excludedLetters.has(letter)) {
+      chip.classList.add("excluded");
+    }
+
+    chip.addEventListener("click", () => {
+      if (excludedLetters.has(letter)) {
+        excludedLetters.delete(letter);
+      } else {
+        excludedLetters.add(letter);
+      }
+      chip.classList.toggle("excluded");
+    });
+
+    alphabetEl.append(chip);
+  });
 }
 
 function countBullsAndCows(guess) {
@@ -138,6 +284,22 @@ function checkGuess() {
   if (new Set(guess).size !== guess.length) {
     showStatus("Все буквы в слове должны быть разными.", "lose");
     return;
+  }
+
+  for (let i = 0; i < secret.length; i++) {
+    const known = knownLetters[i];
+
+    if (known && guess[i] !== known) {
+      showStatus(`На позиции ${i + 1} должна стоять буква «${known}».`, "lose");
+      return;
+    }
+  }
+
+  for (const letter of guess) {
+    if (excludedLetters.has(letter)) {
+      showStatus(`Буква «${letter}» помечена как отсутствующая в слове.`, "lose");
+      return;
+    }
   }
 
   attempts++;
@@ -183,6 +345,7 @@ function endGame() {
 
 document.getElementById("check").addEventListener("click", checkGuess);
 document.getElementById("restart").addEventListener("click", startGame);
+
 guessInput.addEventListener("keydown", e => {
   if (e.key === "Enter") checkGuess();
 });
