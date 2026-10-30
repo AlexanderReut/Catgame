@@ -1,225 +1,170 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <title>Рисуем животных</title>
-    <style>
-        /* --- СТИЛИ СТРАНИЦЫ --- */
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f5f7fa;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            padding: 20px;
-            box-sizing: border-box;
-        }
-        .container {
-            text-align: center;
-            background-color: white;
-            border-radius: 15px;
-            padding: 30px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-            width: 90%;
-            max-width: 600px;
-        }
-        h1 {
-            color: #2c3e50;
-            margin-bottom: 10px;
-        }
-        p {
-            color: #7f8c8d;
-            margin-bottom: 25px;
-        }
-
-        /* --- СТИЛИ ХОЛСТА И РИСОВАНИЯ --- */
-        canvas {
-            touch-action: none; /* Отключаем стандартное поведение браузера при касании */
-            cursor: crosshair;
-            border: 2px solid #ddd;
-            background-color: #fffaf0;
-            image-rendering: pixelated; /* Для четких линий */
-        }
-
-        /* --- СТИЛИ КНОПКИ --- */
-        button#clearBtn {
-            margin-top: 15px;
-            padding: 12px 25px;
-            font-size: 16px;
-            border: none;
-            border-radius: 8px;
-            background-color: #ff9a00;
-            color: white;
-            cursor: pointer;
-            transition: opacity 0.3s ease;
-        }
-        button#clearBtn:hover {
-            opacity: 0.9;
-        }
-
-        /* --- БЛОК РЕЗУЛЬТАТА --- */
-        #resultBox {
-            margin-top: 25px;
-            font-size: 22px;
-            font-weight: bold;
-        }
-        #label {
-            color: #2c3e50;
-        }
-        #confidence {
-            color: #7f8c8d;
-            font-style: italic;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <title>Быки и коровы</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f0f2f5;
+      color: #333;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+    .game-box {
+      background: white;
+      padding: 24px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      width: 360px;
+    }
+    h1 {
+      text-align: center;
+      font-size: 22px;
+      margin-bottom: 16px;
+    }
+    #status {
+      text-align: center;
+      margin-bottom: 16px;
+      font-weight: bold;
+      color: #555;
+    }
+    input {
+      width: 100%;
+      padding: 10px;
+      font-size: 18px;
+      text-transform: uppercase;
+      text-align: center;
+      box-sizing: border-box;
+      margin-bottom: 12px;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      cursor: pointer;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 6px;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    #history {
+      margin-top: 16px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+      border-bottom: 1px solid #eee;
+    }
+    .guess-word {
+      font-weight: bold;
+      font-size: 18px;
+    }
+    .result {
+      font-size: 14px;
+      color: #666;
+    }
+  </style>
 </head>
 <body>
+  <div class="game-box">
+    <h1>Быки и коровы</h1>
+    <div id="status">Введите 4-буквенное слово</div>
+    <input type="text" id="guess" maxlength="4" placeholder="ABCD" />
+    <button onclick="checkGuess()">Проверить</button>
+    <div id="history"></div>
+  </div>
 
-<div class="container">
-    <h1>Нарисуй животное пальцем!</h1>
-    <p>Попробуй нарисовать кошку или собаку.</p>
+  <script>
+    // Список слов для угадывания (можно расширить)
+    const words = [
+      "КОТЯ", "МАМА", "ПАПА", "ВОДА", "ЛЕТО",
+      "МОРЕ", "ГОРА", "ПОЛЕ", "РЫБА", "ПЧЕЛА"
+    ];
 
-    <!-- Холст для рисования -->
-    <canvas id="drawingCanvas"></canvas>
+    let secretWord = "";
+    let attempts = 0;
 
-    <!-- Кнопка очистки холста -->
-    <button id="clearBtn">Очистить</button>
-
-    <!-- Блок для вывода результата предсказания -->
-    <div id="resultBox">
-        <span id="label"></span><br>
-        <span id="confidence"></span>
-    </div>
-</div>
-
-<!-- Библиотека TensorFlow.js (нужна для работы модели) -->
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.16.0/dist/tf.min.js"></script>
-
-<script>
-// --- НАЧАЛО СКРИПТА ---
-const canvas = document.getElementById('drawingCanvas');
-const ctx = canvas.getContext('2d');
-const clearBtn = document.getElementById('clearBtn');
-const labelSpan = document.getElementById('label');
-const confidenceSpan = document.getElementById('confidence');
-
-// Устанавливаем размер холста адаптивно
-function resizeCanvas() {
-    const containerWidth = document.querySelector('.container').clientWidth - 40; // Учитываем padding
-    canvas.width = containerWidth * 0.9;
-    canvas.height = canvas.width / 2; // Соотношение сторон 2:1
-}
-resizeCanvas();
-window.addEventListener('resize', resizeCanvas);
-
-// Настройки кисти
-ctx.lineCap = 'round';
-ctx.strokeStyle = '#000'; // Тонкие черные линии
-ctx.lineWidth = 8;
-
-let isDrawing = false;
-let lastX = 0;
-let lastY = 0;
-
-// Получение координат касания/мыши
-function getPos(e) {
-    const rect = canvas.getBoundingClientRect();
-    if (e.touches) { // Сенсорный ввод
-        return [e.touches[0].clientX - rect.left, e.touches[0].clientY - rect.top];
-    } else { // Десктопный ввод
-        return [e.clientX - rect.left, e.clientY - rect.top];
+    // Инициализация
+    function init() {
+      secretWord = words[Math.floor(Math.random() * words.length)];
+      document.getElementById("status").innerText = "Угадайте слово из 4 букв!";
+      document.getElementById("history").innerHTML = "";
+      attempts = 0;
+      document.getElementById("guess").value = "";
+      document.getElementById("guess").focus();
     }
-}
 
-// Функции событий рисования
-function startDraw(e) {
-    isDrawing = true;
-    [lastX, lastY] = getPos(e);
-}
-function draw(e) {
-    if (!isDrawing) return;
-    const [x, y] = getPos(e);
-    ctx.beginPath();
-    ctx.moveTo(lastX, lastY);
-    ctx.lineTo(x, y);
-    ctx.stroke();
-    [lastX, lastY] = [x, y];
-}
-function stopDraw() {
-    isDrawing = false;
-    predict(); // Запускаем распознавание после того, как палец поднят
-}
+    function checkGuess() {
+      const input = document.getElementById("guess").value.trim().toUpperCase();
+      const history = document.getElementById("history");
+      const status = document.getElementById("status");
 
-// Добавляем обработчики для сенсорных устройств и мыши
-canvas.addEventListener('touchstart', startDraw);
-canvas.addEventListener('touchmove', draw);
-canvas.addEventListener('touchend', stopDraw);
-canvas.addEventListener('touchcancel', stopDraw);
-
-canvas.addEventListener('mousedown', startDraw);
-canvas.addEventListener('mousemove', draw);
-canvas.addEventListener('mouseup', stopDraw);
-canvas.addEventListener('mouseout', stopDraw);
-
-// Очистка холста
-clearBtn.addEventListener('click', () => {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    labelSpan.textContent = '';
-    confidenceSpan.textContent = '';
-});
-
-// --- ЛОГИКА РАСПОЗНАВАНИЯ ---
-async function predict() {
-    // Проверяем, не пустой ли холст
-    if (ctx.getImageData(0, 0, 1, 1).data.every(v => v === 255)) {
-        console.log("Холст пуст");
+      // Проверка длины и букв
+      if (input.length !== 4 || !/^[А-ЯЁ]{4}$/.test(input)) {
+        status.innerText = "Введите ровно 4 русские буквы!";
         return;
+      }
+
+      attempts++;
+      let bulls = 0, cows = 0;
+      const usedSecret = []; // чтобы не считать одну букву дважды
+
+      // Подсчёт быков
+      for (let i = 0; i < 4; i++) {
+        if (input[i] === secretWord[i]) {
+          bulls++;
+          usedSecret[i] = true;
+        }
+      }
+
+      // Подсчёт коров
+      for (let i = 0; i < 4; i++) {
+        if (!usedSecret[i]) { // если не бык
+          for (let j = 0; j < 4; j++) {
+            if (i !== j && !usedSecret[j] && input[i] === secretWord[j]) {
+              cows++;
+              usedSecret[j] = true; // пометим, чтобы не использовать повторно
+              break;
+            }
+          }
+        }
+      }
+
+      // Вывод строки истории
+      const row = document.createElement("div");
+      row.className = "row";
+      row.innerHTML = `
+        <span class="guess-word">${input}</span>
+        <span class="result">${bulls} бык(ов), ${cows} коров(а)</span>
+      `;
+      history.appendChild(row);
+
+      // Проверка победы
+      if (bulls === 4) {
+        status.innerText = `Победа! Слово было: ${secretWord}. Попыток: ${attempts}`;
+        document.getElementById("guess").disabled = true;
+      } else if (attempts >= 10) {
+        status.innerText = `Игра окончена! Вы не угадали. Слово было: ${secretWord}`;
+        document.getElementById("guess").disabled = true;
+      } else {
+        status.innerText = `${bulls} бык(ов), ${cows} коров(а). Попробуйте ещё.`;
+        document.getElementById("guess").value = "";
+        document.getElementById("guess").focus();
+      }
     }
 
-    // URL вашей модели из Teachable Machine
-    const MODEL_URL = "https://teachablemachine.withgoogle.com/models/fWaCH2zzy";
-
-    try {
-        // Загружаем модель и метаданные
-        const model = await tf.loadGraphModel(MODEL_URL + 'model.json');
-        const metadata = await fetch(MODEL_URL + 'metadata.json').then(r => r.json());
-
-        // Подготовка изображения для нейросети
-        const img = new Image();
-        img.src = canvas.toDataURL();
-        await img.decode();
-
-        const tensor = tf.browser.fromPixels(img)
-            .resizeBilinear([224, 224]) // Приводим к размеру, на котором училась модель
-            .expandDims(0) // Добавляем измерение batch
-            .toFloat()
-            .div(tf.scalar(127))
-            .sub(tf.scalar(1));
-
-        // Делаем предсказание
-        const predictions = await model.predict(tensor);
-        const results = Array.from(predictions.dataSync());
-
-        // Находим самый вероятный класс
-        const maxIndex = results.indexOf(Math.max(...results));
-        const predictedLabel = metadata.labels[maxIndex];
-        const confidence = (Math.max(...results) * 100).toFixed(2);
-
-        // Выводим результат на экран
-        labelSpan.textContent = `Это ${predictedLabel}`;
-        confidenceSpan.textContent = `(уверенность ${confidence}%)`;
-
-        // Освобождаем память GPU
-        tensor.dispose();
-        predictions.dispose();
-
-    } catch (error) {
-        console.error("Ошибка загрузки модели:", error);
-        alert("Не удалось загрузить модель распознавания. Проверьте консоль разработчика.");
-    }
-}
-</script>
-
+    init();
+  </script>
 </body>
 </html>
