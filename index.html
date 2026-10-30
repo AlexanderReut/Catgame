@@ -1,215 +1,193 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <title>Быки и коровы (API + Fallback)</title>
-  <style>
-    body { font-family: Arial, sans-serif; background: #f0f2f5; color: #333; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-    .game-box { background: white; padding: 24px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 360px; }
-    h1 { text-align: center; font-size: 22px; margin-bottom: 16px; }
-    #status { text-align: center; margin-bottom: 16px; font-weight: bold; color: #555; line-height: 1.4; }
-    input { width: 100%; padding: 10px; font-size: 18px; text-transform: uppercase; text-align: center; box-sizing: border-box; margin-bottom: 12px; }
-    button { width: 100%; padding: 12px; font-size: 16px; cursor: pointer; border: none; border-radius: 6px; margin-bottom: 8px; }
-    .btn-primary { background: #007bff; color: white; }
-    .btn-primary:hover { background: #0056b3; }
-    .btn-secondary { background: #6c757d; color: white; }
-    .btn-secondary:hover { background: #5a6268; }
-    button:disabled { background: #ccc; cursor: not-allowed; }
-    #history { margin-top: 16px; max-height: 300px; overflow-y: auto; }
-    .row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #eee; }
-    .guess-word { font-weight: bold; font-size: 18px; }
-    .result { font-size: 14px; color: #666; }
-    .api-log { margin-top: 12px; padding: 8px; background: #e9ecef; border-radius: 6px; font-family: monospace; font-size: 13px; color: #495057; display: none; }
-    .success { color: #155724; background: #d4edda; }
-    .error { color: #721c24; background: #f8d7da; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Быки и коровы — угадай слово</title>
+<style>
+  body {
+    font-family: system-ui, sans-serif;
+    background: #101828;
+    color: #e8eef7;
+    display: flex;
+    justify-content: center;
+    padding: 24px;
+    margin: 0;
+  }
+  .game {
+    width: 100%;
+    max-width: 520px;
+    background: #17223b;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.35);
+  }
+  h1 { margin: 0 0 6px; font-size: 26px; }
+  p { color: #a8b6cc; margin: 4px 0 18px; }
+  input, button {
+    font-size: 17px;
+    border-radius: 10px;
+    padding: 12px;
+    border: 1px solid #33415c;
+  }
+  input {
+    width: 100%;
+    box-sizing: border-box;
+    background: #0d1526;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+  }
+  button {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    width: 100%;
+    margin-top: 10px;
+  }
+  button:hover { background: #2563eb; }
+  .status { min-height: 22px; margin: 12px 0; font-weight: 600; }
+  .win { color: #34d399; }
+  .lose { color: #f87171; }
+  ul { list-style: none; padding: 0; margin: 0; }
+  li {
+    display: flex;
+    justify-content: space-between;
+    background: #0d1526;
+    border: 1px solid #26324a;
+    padding: 10px 14px;
+    border-radius: 10px;
+    margin-bottom: 8px;
+  }
+  .word { letter-spacing: 3px; font-weight: 700; }
+  .bulls { color: #34d399; font-weight: 700; }
+  .cows { color: #fbbf24; font-weight: 700; }
+  .new {
+    background: transparent;
+    border: 1px solid #33415c;
+    color: #a8b6cc;
+    margin-top: 14px;
+  }
+</style>
 </head>
 <body>
-  <div class="game-box">
-    <h1>Быки и коровы</h1>
-    <div id="status">Загрузка слова...</div>
-    <input type="text" id="guess" maxlength="4" placeholder="ABCD" disabled />
-    <button id="checkBtn" class="btn-primary" onclick="checkGuess()" disabled>Проверить</button>
-    <button class="btn-secondary" onclick="testApi()" id="apiBtn">Проверить работу API</button>
-    <div id="apiLog" class="api-log"></div>
-    <div id="history"></div>
-  </div>
+<div class="game">
+  <h1>Быки и коровы</h1>
+  <p>Угадайте слово из <span id="length"></span> букв. Все буквы разные.</p>
 
-  <script>
-    const fallbackWords = [
-      "КОТЯ","МАМА","ПАПА","ВОДА","ЛЕТО","МОРЕ","ГОРА","ПОЛЕ","РЫБА","ПЧЕЛА",
-      "КРОТ","СЛОН","ТИГР","ЛИСА","СОВА","УТКА","РАК","КИТ","ЁЖ","БЫК",
-      "ДОМ","СОК","ТОК","РОТ","КОТ","БОТ","ЛОТ","МОТ","НОТ","ФОН"
-    ];
+  <input id="guess" maxlength="5" placeholder="СЛОВО" autocomplete="off">
+  <button id="check">Проверить</button>
+  <div class="status" id="status"></div>
 
-    let secretWord = "";
-    let attempts = 0;
-    let isEnglish = false;
-    let inputPattern;
-    const apiUrl = "https://random-words-api.kushcreates.com/";
+  <ul id="history"></ul>
+  <button class="new" id="restart">Новая игра</button>
+</div>
 
-    async function init() {
-      const status = document.getElementById("status");
-      const input = document.getElementById("guess");
-      const btn = document.getElementById("checkBtn");
+<script>
+const WORDS = ["КНИГА", "ВЕСНА", "ЗЕМЛЯ", "МОРЕ", "ГОРОД", "ЛУНА", "ТРАВА", "ОКНО", "РУКА", "ЛЕТО"];
 
-      status.innerText = "Запрос слова из интернета...";
+let secret = "";
+let attempts = 0;
+const maxAttempts = 10;
 
-      try {
-        const res = await fetch(apiUrl, { method: "GET", headers: { "Accept": "application/json" } });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        
-        const data = await res.json();
-        let word = data.word || data.Word || ""; 
-        
-        if (!word || typeof word !== 'string') throw new Error("Неверный формат ответа: нет поля 'word'");
+const guessInput = document.getElementById("guess");
+const statusEl = document.getElementById("status");
+const historyEl = document.getElementById("history");
+const lengthEl = document.getElementById("length");
 
-        word = word.toUpperCase().trim();
+function startGame() {
+  secret = WORDS[Math.floor(Math.random() * WORDS.length)];
+  attempts = 0;
+  guessInput.value = "";
+  guessInput.maxLength = secret.length;
+  guessInput.placeholder = "СЛОВО ИЗ " + secret.length + " БУКВ";
+  lengthEl.textContent = secret.length;
+  statusEl.textContent = "";
+  statusEl.className = "status";
+  historyEl.innerHTML = "";
+  guessInput.disabled = false;
+  document.getElementById("check").disabled = false;
+  guessInput.focus();
+}
 
-        if (/^[A-Z]{4,6}$/.test(word)) {
-          isEnglish = true;
-          inputPattern = /^[A-Z]{4}$/;
-          secretWord = word.slice(0, 4);
-          status.innerText = "Угадайте 4-буквенное английское слово!";
-        } 
-        else if (/^[А-ЯЁ]{4}$/.test(word)) {
-          isEnglish = false;
-          inputPattern = /^[А-ЯЁ]{4}$/;
-          secretWord = word;
-          status.innerText = "Угадайте 4-буквенное русское слово!";
-        }
-        else {
-          throw new Error("Слово не подходит по формату (не 4 буквы или неизвестный алфавит)");
-        }
-      } catch (e) {
-        console.error("Ошибка API, используем локальный список:", e);
-        isEnglish = false;
-        inputPattern = /^[А-ЯЁ]{4}$/;
-        secretWord = fallbackWords[Math.floor(Math.random() * fallbackWords.length)];
-        status.innerText = "API не ответил. Играем на русском (офлайн). Угадайте слово из 4 букв!";
-      }
+function countBullsAndCows(guess) {
+  let bulls = 0;
+  let cows = 0;
 
-      attempts = 0;
-      document.getElementById("history").innerHTML = "";
-      input.value = "";
-      input.disabled = false;
-      btn.disabled = false;
-      input.focus();
+  for (let i = 0; i < secret.length; i++) {
+    if (guess[i] === secret[i]) {
+      bulls++;
+    } else if (secret.includes(guess[i])) {
+      cows++;
     }
+  }
 
-    // Отдельная функция для проверки API (по кнопке)
-    async function testApi() {
-      const log = document.getElementById("apiLog");
-      const status = document.getElementById("status");
-      const apiBtn = document.getElementById("apiBtn");
-      
-      log.style.display = "block";
-      log.className = "api-log";
-      log.innerText = "Запрос к API...";
-      apiBtn.disabled = true;
+  return { bulls, cows };
+}
 
-      try {
-        const res = await fetch(apiUrl, { method: "GET", headers: { "Accept": "application/json" }, mode: "cors" });
-        const rawText = await res.text(); // сначала читаем как текст, чтобы видеть ошибки JSON
-        
-        let data;
-        try {
-          data = rawText ? JSON.parse(rawText) : {};
-        } catch (jsonErr) {
-          throw new Error("Ответ не является валидным JSON: " + rawText.substring(0, 100));
-        }
+function checkGuess() {
+  const guess = guessInput.value.trim().toUpperCase();
 
-        if (!res.ok) throw new Error(`HTTP ${res.status}: ${rawText}`);
+  if (guess.length !== secret.length) {
+    showStatus(`Введите слово из ${secret.length} букв.`, "lose");
+    return;
+  }
 
-        let word = data.word || data.Word || "(поле 'word' отсутствует)";
-        let usable = false;
-        let reason = "";
+  if (new Set(guess).size !== guess.length) {
+    showStatus("Все буквы в слове должны быть разными.", "lose");
+    return;
+  }
 
-        if (typeof word === 'string' && /^[A-Z]{4,6}$/.test(word.toUpperCase())) {
-          usable = true;
-          reason = `Слово: "${word}" (английское, ${word.length} букв). В игре будет использовано: "${word.slice(0,4)}".`;
-        } else if (typeof word === 'string' && /^[А-ЯЁ]{4}$/.test(word.toUpperCase())) {
-          usable = true;
-          reason = `Слово: "${word}" (русское, подходит идеально).`;
-        } else {
-          reason = `Слово "${word}" не подходит: либо неверный формат, либо длина не 4 буквы. Игра будет использовать локальный список.`;
-        }
+  attempts++;
+  const result = countBullsAndCows(guess);
 
-        log.className = "api-log success";
-        log.innerText = `✅ API доступен!\n${reason}`;
-        status.innerText = usable ? "API работает, слово загружено." : "API работает, но слово не подходит — игра на локальном списке.";
-      } catch (e) {
-        log.className = "api-log error";
-        log.innerText = `❌ Ошибка API: ${e.message}\nИгра автоматически переключена на локальный список слов.`;
-        status.innerText = "Ошибка API. Игра на локальном списке (офлайн).";
-        console.error(e);
-      } finally {
-        apiBtn.disabled = false;
-      }
-    }
+  const item = document.createElement("li");
+  item.innerHTML = `
+    <span class="word">${guess}</span>
+    <span>
+      <span class="bulls">🐂 ${result.bulls}</span>
+      &nbsp;
+      <span class="cows">🐄 ${result.cows}</span>
+    </span>
+  `;
+  historyEl.prepend(item);
 
-    function checkGuess() {
-      const inputEl = document.getElementById("guess");
-      const history = document.getElementById("history");
-      const status = document.getElementById("status");
-      const btn = document.getElementById("checkBtn");
+  if (result.bulls === secret.length) {
+    showStatus(`Победа! Слово «${secret}» угадано за ${attempts} попыток.`, "win");
+    endGame();
+    return;
+  }
 
-      let input = inputEl.value.trim().toUpperCase();
+  if (attempts >= maxAttempts) {
+    showStatus(`Игра окончена. Загаданное слово: «${secret}».`, "lose");
+    endGame();
+    return;
+  }
 
-      if (!inputPattern.test(input)) {
-        const langMsg = isEnglish ? "английские" : "русские";
-        status.innerText = `Введите ровно 4 ${langMsg} буквы!`;
-        return;
-      }
+  showStatus(`Быки: ${result.bulls}, коровы: ${result.cows}. Осталось попыток: ${maxAttempts - attempts}.`);
+  guessInput.value = "";
+  guessInput.focus();
+}
 
-      attempts++;
-      let bulls = 0, cows = 0;
-      const usedSecret = [];
+function showStatus(text, type = "") {
+  statusEl.textContent = text;
+  statusEl.className = "status " + type;
+}
 
-      for (let i = 0; i < 4; i++) {
-        if (input[i] === secretWord[i]) {
-          bulls++;
-          usedSecret[i] = true;
-        }
-      }
+function endGame() {
+  guessInput.disabled = true;
+  document.getElementById("check").disabled = true;
+}
 
-      for (let i = 0; i < 4; i++) {
-        if (!usedSecret[i]) {
-          for (let j = 0; j < 4; j++) {
-            if (i !== j && !usedSecret[j] && input[i] === secretWord[j]) {
-              cows++;
-              usedSecret[j] = true;
-              break;
-            }
-          }
-        }
-      }
+document.getElementById("check").addEventListener("click", checkGuess);
+document.getElementById("restart").addEventListener("click", startGame);
+guessInput.addEventListener("keydown", e => {
+  if (e.key === "Enter") checkGuess();
+});
 
-      const row = document.createElement("div");
-      row.className = "row";
-      row.innerHTML = `
-        <span class="guess-word">${input}</span>
-        <span class="result">${bulls} бык(ов), ${cows} коров(а)</span>
-      `;
-      history.appendChild(row);
-
-      if (bulls === 4) {
-        status.innerText = `Победа! Слово было: ${secretWord}. Попыток: ${attempts}`;
-        inputEl.disabled = true;
-        btn.disabled = true;
-      } else if (attempts >= 10) {
-        status.innerText = `Игра окончена! Вы не угадали. Слово было: ${secretWord}`;
-        inputEl.disabled = true;
-        btn.disabled = true;
-      } else {
-        status.innerText = `${bulls} бык(ов), ${cows} коров(а). Попробуйте ещё.`;
-        inputEl.value = "";
-        inputEl.focus();
-      }
-    }
-
-    init();
-  </script>
+startGame();
+</script>
 </body>
 </html>
- 
